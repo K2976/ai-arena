@@ -43,11 +43,14 @@ from .services import (
     build_rag_response,
     nutrition_lookup,
     workout_recommendation,
+    ai_workout_recommendation,
+    ai_workout_analysis,
     consistency_feedback,
     mood_playlist,
     shopping_suggestions,
     pseudo_embedding,
     fastapi_post,
+    calculate_streak,
 )
 
 
@@ -180,13 +183,23 @@ class CVAnalyzeView(APIView):
         serializer = CVAnalyzeSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
+        # Try FastAPI service first
         fastapi_result = fastapi_post('/cv/analyze', serializer.validated_data)
+
         if not fastapi_result:
+            # Fall back to AI-powered analysis
+            ai_result = ai_workout_analysis(
+                exercise_name=serializer.validated_data['exercise_name'],
+                reps=serializer.validated_data['reps'],
+                duration=serializer.validated_data.get('duration_minutes', 1) * 60,
+                form_notes=serializer.validated_data.get('form_notes', '')
+            )
             fastapi_result = {
                 'exercise_name': serializer.validated_data['exercise_name'],
                 'reps': serializer.validated_data['reps'],
-                'form_score': serializer.validated_data['form_score'],
-                'feedback': 'Keep your back straight and control eccentric phase.',
+                'form_score': ai_result['form_score'],
+                'feedback': ai_result['feedback'],
+                'calories_burned': ai_result['calories_burned'],
             }
 
         workout = WorkoutSession.objects.create(
@@ -194,8 +207,8 @@ class CVAnalyzeView(APIView):
             exercise_name=fastapi_result['exercise_name'],
             reps=fastapi_result['reps'],
             duration_minutes=serializer.validated_data.get('duration_minutes', 0),
-            form_score=fastapi_result['form_score'],
-            calories_burned=max(30, fastapi_result['reps'] * 4),
+            form_score=fastapi_result.get('form_score', 75),
+            calories_burned=fastapi_result.get('calories_burned', max(30, fastapi_result['reps'] * 4)),
         )
         return Response({'analysis': fastapi_result, 'session': WorkoutSessionSerializer(workout).data}, status=status.HTTP_201_CREATED)
 
@@ -331,7 +344,26 @@ class ChatAskView(APIView):
         serializer.is_valid(raise_exception=True)
 
         profile, _ = UserProfile.objects.get_or_create(user=request.user)
-        context = {'goal': profile.goal, 'diet_type': profile.diet_type, 'streak_days': profile.streak_days}
+
+        # Get recent workout and nutrition data for context
+        recent_workouts = WorkoutSession.objects.filter(user=request.user).order_by('-created_at')[:5]
+        recent_sleep = SleepLog.objects.filter(user=request.user).order_by('-created_at').first()
+
+        context = {
+            'profile': {
+                'goal': profile.goal,
+                'diet_type': profile.diet_type,
+                'streak_days': profile.streak_days,
+                'weight': profile.weight,
+            },
+            'recent': {
+                'recent_workouts': ', '.join([w.exercise_name for w in recent_workouts]) if recent_workouts else 'None',
+                'avg_calories': sum(w.calories_burned for w in recent_workouts) // len(recent_workouts) if recent_workouts else 0,
+                'avg_sleep': recent_sleep.hours if recent_sleep else 7,
+            }
+        }
+
+        # Try FastAPI service first, fall back to Groq-powered response
         fastapi_result = fastapi_post('/chat/respond', {'message': serializer.validated_data['message'], 'context': context})
         response_data = fastapi_result or build_rag_response(serializer.validated_data['message'], context)
 
@@ -349,13 +381,35 @@ class RecommendationEngineView(APIView):
         serializer = RecommendationRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
+        # Get user profile for personalized recommendations
+        profile, _ = UserProfile.objects.get_or_create(user=request.user)
+        last_workout = WorkoutSession.objects.filter(user=request.user).order_by('-created_at').first()
+
+        # Try FastAPI service first
         fastapi_result = fastapi_post('/recommendation/workout', serializer.validated_data)
-        recommendation = fastapi_result or workout_recommendation(**serializer.validated_data)
+
+        if not fastapi_result:
+            # Fall back to AI-powered recommendations
+            user_profile = {'goal': profile.goal, 'diet_type': profile.diet_type}
+            recent_metrics = {
+                'streak': profile.streak_days,
+                'sleep_hours': serializer.validated_data.get('sleep_hours', 7),
+                'fatigue': serializer.validated_data.get('fatigue', 50),
+                'performance': serializer.validated_data.get('performance', 70),
+                'last_workout': last_workout.exercise_name if last_workout else 'None'
+            }
+            recommendation = ai_workout_recommendation(user_profile, recent_metrics)
+
+            if 'ai_recommendation' not in recommendation:
+                # Use rule-based if AI fails
+                recommendation = workout_recommendation(**serializer.validated_data)
+        else:
+            recommendation = fastapi_result
 
         RecommendationLog.objects.create(
             user=request.user,
-            intensity=recommendation['intensity'],
-            reason=recommendation['note'],
+            intensity=recommendation.get('intensity', 'moderate'),
+            reason=recommendation.get('note', recommendation.get('ai_recommendation', '')),
         )
         return Response(recommendation)
 
@@ -372,7 +426,14 @@ class ShoppingSuggestionView(APIView):
     def post(self, request):
         serializer = ShoppingSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        suggestions = shopping_suggestions(serializer.validated_data['preference'])
+
+        # Get user's goal for personalized suggestions
+        profile, _ = UserProfile.objects.get_or_create(user=request.user)
+        suggestions = shopping_suggestions(
+            serializer.validated_data['preference'],
+            goal=profile.goal
+        )
+
         saved = []
         for suggestion in suggestions:
             item = ShoppingSuggestion.objects.create(user=request.user, **suggestion)

@@ -1,137 +1,209 @@
-# BeastTrack
+# AI Arena Gym
 
-BeastTrack is a React + Django fitness platform scaffold covering:
+A modern gym website built with React + Vite, featuring dynamic content powered by Wikipedia API and AI-powered fitness coaching using Groq.
 
-- User auth + profile setup
-- CV workout tracking (OpenCV/MediaPipe-ready)
-- Food recognition + nutrition AI module
-- Streak, consistency, and analytics dashboards
-- Fitness band sync, WhatsApp bot, shopping, and music integration pages
-- RAG-style personal intelligence + AI chatbot + recommendation engine
+## Features
+
+### Frontend
+- **Dynamic Hero Section** - Eye-catching hero with real gym imagery from Wikipedia
+- **Equipment Gallery** - Showcases gym equipment with images and descriptions
+- **Exercise Library** - Popular exercises with visual guides
+- **Fitness Classes** - Yoga, Pilates, CrossFit, HIIT, Spinning, Zumba
+- **Membership Plans** - Pricing cards for Basic, Pro, and Elite
+- **Responsive Design** - Works on desktop, tablet, and mobile
+
+### Backend (AI-Powered)
+- **Groq AI Chatbot** - Personalized fitness advice powered by Llama 3.3 70B
+- **Smart Nutrition Tracking** - 30+ foods database + AI estimation for unknown foods
+- **Workout Analysis** - AI-powered form feedback and calorie estimation
+- **Personalized Recommendations** - AI workout plans based on goals, sleep, and fatigue
+- **CV Workout Tracking** - MediaPipe/OpenCV integration ready
+- **Analytics Dashboard** - Track progress, streaks, and consistency
+- **Shopping Suggestions** - Diet-specific product recommendations
+
+## Tech Stack
+
+- **Frontend**: React 18 + Vite + Framer Motion
+- **Backend**: Django 5.2 + Django REST Framework
+- **Database**: Neon PostgreSQL (serverless)
+- **AI**: Groq API (Llama 3.3 70B)
+- **Auth**: JWT (Simple JWT)
+- **Content**: Wikipedia REST API
 
 ## Project Structure
 
-- `src/` → React frontend (Vite)
-- `backend/` → Django REST backend
-- `fastapi_service/` → FastAPI AI microservice
+```
+ai-arena/
+├── src/
+│   ├── components/           # Reusable UI components
+│   ├── pages/                # Page components
+│   │   ├── Landing.jsx       # Main gym landing page
+│   │   ├── Dashboard.jsx     # User dashboard
+│   │   ├── AIChat.jsx        # AI fitness coach
+│   │   └── ...
+│   └── services/
+│       ├── api.js            # Backend API service
+│       └── wikipediaApi.js   # Wikipedia API integration
+├── backend/
+│   ├── apps/core/            # Main Django app
+│   │   ├── models.py         # Database models
+│   │   ├── views.py          # API views
+│   │   ├── services.py       # Groq AI + business logic
+│   │   └── serializers.py    # DRF serializers
+│   └── beasttrack_backend/   # Django project settings
+└── fastapi_service/          # Optional FastAPI microservice
+```
 
-## Frontend Setup (React)
+## Quick Start
 
-1. Install dependencies:
+### Frontend
 
-	```bash
-	npm install
-	```
+```bash
+# Install dependencies
+npm install
 
-2. Create env:
+# Start dev server
+npm run dev
+```
 
-	```bash
-	cp .env.example .env
-	```
+Open http://localhost:5173
 
-3. Run frontend:
+### Backend
 
-	```bash
-	npm run dev
-	```
+```bash
+cd backend
 
-## Backend Setup (Django)
+# Install Python dependencies
+pip install -r requirements.txt
 
-1. Create Python virtual environment and activate it.
+# Configure environment (edit .env with your keys)
+cp .env.example .env
 
-2. Install dependencies:
+# Run migrations
+python manage.py migrate
 
-	```bash
-	pip install -r backend/requirements.txt
-	```
+# Start server
+python manage.py runserver
+```
 
-3. Create backend env:
-
-	```bash
-	cp backend/.env.example backend/.env
-	```
-
-4. Run migrations:
-
-	```bash
-	cd backend
-	python manage.py migrate
-	```
-
-5. Start backend:
-
-	```bash
-	python manage.py runserver
-	```
-
-Backend API base URL: `http://localhost:8000/api`
-
-## AI Service Setup (FastAPI)
-
-1. Install AI service dependencies:
-
-	```bash
-	pip install -r fastapi_service/requirements.txt
-	```
-
-2. Start FastAPI service:
-
-	```bash
-	python -m uvicorn fastapi_service.main:app --host 0.0.0.0 --port 9000
-	```
-
-FastAPI base URL: `http://localhost:9000`
-
-## Key API Endpoints
-
-- `POST /api/auth/signup/`
-- `POST /api/auth/login/`
-- `POST /api/auth/google/`
-- `POST /api/auth/token/refresh/`
-- `GET/PUT /api/profile/`
-- `GET /api/dashboard/summary/`
-- `GET /api/dashboard/progress/`
-- `GET/POST /api/workouts/sessions/`
-- `POST /api/workouts/cv/analyze/`
-- `GET /api/workouts/summary/`
-- `POST /api/nutrition/recognize/`
-- `GET /api/analytics/consistency/`
-- `GET /api/analytics/overview/`
-- `GET/POST /api/sleep/logs/`
-- `GET/POST /api/integrations/bands/sync/`
-- `GET/POST /api/rag/memory/`
-- `POST /api/chat/ask/`
-- `POST /api/recommendations/workout/`
-- `POST /api/integrations/whatsapp/send/`
-- `POST /api/shopping/suggestions/`
-- `POST /api/music/recommend/`
-- `GET/POST /api/progress/photos/`
-- `GET/PUT /api/notifications/preferences/`
-- `GET /api/nutrition/logs/`
-- `POST /api/nutrition/search/`
-- `GET /api/features/`
-
-### FastAPI AI Endpoints
-
-- `GET /health`
-- `POST /cv/analyze`
-- `POST /nutrition/recognize`
-- `POST /chat/respond`
-- `POST /recommendation/workout`
+Backend API: http://localhost:8000/api
 
 ## Environment Variables
 
-Frontend envs are in `.env.example`.
+### Backend (.env)
 
-Backend envs are in `backend/.env.example`, including placeholders for:
+```env
+# Database - Neon PostgreSQL
+DATABASE_URL=postgresql://user:pass@host/db?sslmode=require
 
-- OpenAI / embeddings (RAG)
-- Nutrition APIs
-- Google Fit / Fitbit
-- Twilio WhatsApp
-- Shopify
-- Spotify / YouTube
+# AI - Groq
+GROQ_API_KEY=your_groq_api_key
 
-Also set:
+# Django
+DJANGO_SECRET_KEY=your-secret-key
+DJANGO_DEBUG=1
+CORS_ALLOWED_ORIGINS=http://localhost:5173
+```
 
-- `FASTAPI_SERVICE_URL=http://localhost:9000`
+## API Endpoints
+
+### Authentication
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/signup/` | Register new user |
+| POST | `/api/auth/login/` | Login with credentials |
+| POST | `/api/auth/google/` | Google OAuth login |
+| POST | `/api/auth/token/refresh/` | Refresh JWT token |
+
+### User
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET/PUT | `/api/profile/` | User profile (goal, diet, streak) |
+| GET | `/api/dashboard/summary/` | Daily stats summary |
+| GET | `/api/dashboard/progress/` | Weekly/monthly progress |
+
+### Workouts
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET/POST | `/api/workouts/sessions/` | Workout sessions |
+| POST | `/api/workouts/cv/analyze/` | AI workout analysis |
+| GET | `/api/workouts/summary/` | Workout stats |
+
+### Nutrition
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/nutrition/search/` | Search food (AI-powered) |
+| POST | `/api/nutrition/recognize/` | Food image recognition |
+| GET | `/api/nutrition/logs/` | Nutrition history |
+
+### AI Features
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/chat/ask/` | **Groq AI chatbot** |
+| POST | `/api/recommendations/workout/` | **AI workout plan** |
+| GET/POST | `/api/rag/memory/` | RAG memory entries |
+
+### Analytics & Integrations
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/analytics/consistency/` | Streak analytics |
+| GET | `/api/analytics/overview/` | Full analytics |
+| GET/POST | `/api/sleep/logs/` | Sleep tracking |
+| GET/POST | `/api/integrations/bands/sync/` | Fitness band sync |
+| POST | `/api/music/recommend/` | Workout music |
+| POST | `/api/shopping/suggestions/` | Shopping suggestions |
+
+## AI Features (Groq-Powered)
+
+### Chat Example
+```bash
+curl -X POST http://localhost:8000/api/chat/ask/ \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"message":"What workout should I do for muscle gain?"}'
+```
+
+Response:
+```json
+{
+  "answer": "Focus on compound lifts like squats, deadlifts, and bench press...",
+  "source": "groq_ai"
+}
+```
+
+### Nutrition Search
+```bash
+curl -X POST http://localhost:8000/api/nutrition/search/ \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"chicken breast"}'
+```
+
+Response:
+```json
+{
+  "result": {
+    "food": "Chicken Breast",
+    "calories": 165,
+    "protein": 31,
+    "carbs": 0,
+    "fats": 3.6,
+    "source": "database"
+  }
+}
+```
+
+## Database Models
+
+- **UserProfile** - Goals, diet type, streak days
+- **WorkoutSession** - Exercise, reps, form score, calories
+- **NutritionLog** - Food, macros tracking
+- **SleepLog** - Sleep hours and quality
+- **FitnessBandSync** - Google Fit/Fitbit data
+- **RAGMemoryEntry** - AI context memory
+- **RecommendationLog** - Workout recommendations
+- **ProgressPhoto** - Progress tracking images
+
+## License
+
+MIT
