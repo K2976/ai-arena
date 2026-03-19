@@ -22,3 +22,42 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Django/FastAPI runtime
+*.sqlite3
+db.sqlite3
+media/
+staticfiles/
+
+# Environment files / secrets
+.env
+.env.*
+!.env.example
+backend/.env
+backend/.env.*
+!backend/.env.example
+
+# Build/cache
+.cache/
+.parcel-cache/
+coverage/
+.coverage
+htmlcov/
+
+# Misc
+*.pid
+*.seed
+*.out
