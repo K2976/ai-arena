@@ -5,7 +5,7 @@ export default function Background() {
   return (
     <div className="bg-container">
       <motion.div 
-        className="glow-blob blob-1"
+        className="soft-shape shape-1"
         animate={{
           scale: [1, 1.2, 1],
           x: [0, 100, 0],
@@ -18,7 +18,7 @@ export default function Background() {
         }}
       />
       <motion.div 
-        className="glow-blob blob-2"
+        className="soft-shape shape-2"
         animate={{
           scale: [1.2, 1, 1.2],
           x: [0, -80, 0],

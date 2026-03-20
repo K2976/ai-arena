@@ -13,6 +13,8 @@ from .models import (
     MusicRecommendation,
     ProgressPhoto,
     NotificationPreference,
+    Cart,
+    CartItem,
 )
 
 
@@ -34,7 +36,7 @@ class SignupSerializer(serializers.Serializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
-        fields = ['age', 'weight', 'goal', 'diet_type', 'streak_days', 'notifications_enabled']
+        fields = ['age', 'weight', 'district', 'goal', 'diet_type', 'streak_days', 'notifications_enabled']
 
 
 class ChatSerializer(serializers.Serializer):
@@ -56,6 +58,12 @@ class CVAnalyzeSerializer(serializers.Serializer):
     reps = serializers.IntegerField(min_value=0)
     form_score = serializers.FloatField(min_value=0, max_value=100)
     duration_minutes = serializers.IntegerField(min_value=0, default=0)
+
+
+class VideoWorkoutAnalyzeSerializer(serializers.Serializer):
+    video = serializers.FileField()
+    exercise_name = serializers.CharField(required=False, allow_blank=True, default='Workout Session')
+    duration_seconds = serializers.FloatField(required=False, min_value=0, default=0)
 
 
 class NutritionLogSerializer(serializers.ModelSerializer):
@@ -103,7 +111,7 @@ class ShoppingSerializer(serializers.Serializer):
 
 
 class MusicSerializer(serializers.Serializer):
-    mood = serializers.ChoiceField(choices=['cardio', 'strength', 'relax'])
+    mood = serializers.ChoiceField(choices=['cardio', 'strength', 'hiit', 'relax', 'yoga'])
 
 
 class ProgressPhotoSerializer(serializers.ModelSerializer):
@@ -116,3 +124,36 @@ class NotificationPreferenceSerializer(serializers.ModelSerializer):
     class Meta:
         model = NotificationPreference
         fields = ['workout_reminders', 'streak_alerts', 'diet_suggestions', 'whatsapp_updates', 'updated_at']
+
+
+class CartItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CartItem
+        fields = ['id', 'product_name', 'product_image', 'product_category', 'wikipedia_url', 'amazon_url', 'flipkart_url', 'quantity', 'price_estimate', 'added_at']
+
+
+class CartSerializer(serializers.ModelSerializer):
+    items = CartItemSerializer(many=True, read_only=True)
+    total_items = serializers.SerializerMethodField()
+    total_price = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Cart
+        fields = ['id', 'items', 'total_items', 'total_price', 'created_at', 'updated_at']
+
+    def get_total_items(self, obj):
+        return obj.get_total_items()
+
+    def get_total_price(self, obj):
+        return obj.get_total_price()
+
+
+class AddToCartSerializer(serializers.Serializer):
+    product_name = serializers.CharField(max_length=256)
+    product_image = serializers.URLField(required=False, allow_blank=True)
+    product_category = serializers.CharField(max_length=64, default='food')
+    wikipedia_url = serializers.URLField(required=False, allow_blank=True)
+    amazon_url = serializers.URLField(required=False, allow_blank=True)
+    flipkart_url = serializers.URLField(required=False, allow_blank=True)
+    quantity = serializers.IntegerField(min_value=1, default=1)
+    price_estimate = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, default=0)

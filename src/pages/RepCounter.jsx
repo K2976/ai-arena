@@ -713,17 +713,17 @@ export default function RepCounter() {
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                backgroundColor: 'rgba(247, 250, 248, 0.95)',
                 zIndex: 20,
-                backdropFilter: 'blur(8px)',
+                backdropFilter: 'blur(4px)',
                 transition: 'opacity 0.5s'
               }}>
                 <svg style={{ width: '48px', height: '48px', marginBottom: '16px', animation: 'spin 1s linear infinite' }} fill="none" stroke="#10b981" viewBox="0 0 24 24">
                   <circle style={{ opacity: 0.25 }} cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path style={{ opacity: 0.75 }} fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <span style={{ fontSize: '20px', fontWeight: '600', color: '#10b981', marginBottom: '8px' }}>Downloading AI Model...</span>
-                <span style={{ fontSize: '14px', color: '#94a3b8', textAlign: 'center', padding: '0 16px' }}>MediaPipe Pose (runs 100% locally in your browser)</span>
+                <span style={{ fontSize: '20px', fontWeight: '600', color: '#2f6fb2', marginBottom: '8px' }}>Downloading AI Model...</span>
+                <span style={{ fontSize: '14px', color: '#5e6878', textAlign: 'center', padding: '0 16px' }}>MediaPipe Pose (runs 100% locally in your browser)</span>
               </div>
             )}
 
@@ -743,18 +743,18 @@ export default function RepCounter() {
               right: '16px',
               padding: '20px 24px',
               borderRadius: '16px',
-              backgroundColor: repGlowActive ? 'rgba(16, 185, 129, 0.15)' : 'rgba(15, 23, 42, 0.85)',
-              border: repGlowActive ? '2px solid #10b981' : '1px solid rgba(100, 116, 139, 0.3)',
+              backgroundColor: repGlowActive ? '#eaf7f0' : '#f6f9fc',
+              border: repGlowActive ? '2px solid #2f6fb2' : '1px solid #dbe3ef',
               transition: 'all 0.3s ease',
-              backdropFilter: 'blur(10px)',
+              backdropFilter: 'none',
               textAlign: 'center',
               minWidth: '120px'
             }}>
-              <span style={{ fontSize: '12px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1.5px', color: '#94a3b8', display: 'block', marginBottom: '8px' }}>REPS</span>
+              <span style={{ fontSize: '12px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1.5px', color: '#64748b', display: 'block', marginBottom: '8px' }}>REPS</span>
               <strong style={{
                 fontSize: '56px',
                 fontWeight: '800',
-                color: repGlowActive ? '#10b981' : '#ffffff',
+                color: repGlowActive ? '#2f6fb2' : '#1f2e43',
                 display: 'block',
                 lineHeight: 1,
                 transition: 'all 0.3s ease',
@@ -824,13 +824,13 @@ export default function RepCounter() {
               padding: '20px',
               marginBottom: '20px',
               borderRadius: '16px',
-              backgroundColor: 'rgba(15, 23, 42, 0.9)',
-              border: '1px solid rgba(100, 116, 139, 0.3)'
+              backgroundColor: '#f6f9fc',
+              border: '1px solid #dbe3ef'
             }}>
-              <p style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1.5px', color: '#94a3b8', marginBottom: '12px' }}>
+              <p style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1.5px', color: '#64748b', marginBottom: '12px' }}>
                 Live AI Feedback
               </p>
-              <p className={`${adviceColor} font-bold text-2xl transition-colors duration-300`} style={{ lineHeight: '1.4' }}>
+              <p className={`${adviceColor} font-bold text-2xl transition-colors duration-300`} style={{ lineHeight: '1.4', color: '#2f3f55' }}>
                 {postureAdvice}
               </p>
             </div>
@@ -842,11 +842,11 @@ export default function RepCounter() {
             <div className="glass" style={{
               padding: '20px',
               borderRadius: '16px',
-              backgroundColor: 'rgba(15, 23, 42, 0.6)',
-              border: '1px solid rgba(100, 116, 139, 0.3)',
+              backgroundColor: '#f6f9fc',
+              border: '1px solid #dbe3ef',
               textAlign: 'center'
             }}>
-              <p style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1.5px', color: '#94a3b8', marginBottom: '8px' }}>Stage</p>
+              <p style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1.5px', color: '#64748b', marginBottom: '8px' }}>Stage</p>
               <p style={{ fontSize: '20px', fontWeight: '700', color: '#60a5fa' }}>{movementStage}</p>
             </div>
 
@@ -854,11 +854,11 @@ export default function RepCounter() {
             <div className="glass" style={{
               padding: '20px',
               borderRadius: '16px',
-              backgroundColor: 'rgba(15, 23, 42, 0.6)',
-              border: '1px solid rgba(100, 116, 139, 0.3)',
+              backgroundColor: '#f6f9fc',
+              border: '1px solid #dbe3ef',
               textAlign: 'center'
             }}>
-              <p style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1.5px', color: '#94a3b8', marginBottom: '8px' }}>Joint Angle</p>
+              <p style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1.5px', color: '#64748b', marginBottom: '8px' }}>Joint Angle</p>
               <p style={{ fontSize: '32px', fontWeight: '800', color: '#22d3ee' }}>{lastAngle}°</p>
             </div>
 
@@ -866,11 +866,11 @@ export default function RepCounter() {
             <div className="glass" style={{
               padding: '20px',
               borderRadius: '16px',
-              backgroundColor: 'rgba(15, 23, 42, 0.6)',
-              border: '1px solid rgba(100, 116, 139, 0.3)',
+              backgroundColor: '#f6f9fc',
+              border: '1px solid #dbe3ef',
               textAlign: 'center'
             }}>
-              <p style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1.5px', color: '#94a3b8', marginBottom: '8px' }}>Symmetry</p>
+              <p style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1.5px', color: '#64748b', marginBottom: '8px' }}>Symmetry</p>
               <p style={{ fontSize: '32px', fontWeight: '800', color: symmetryScore >= 80 ? '#10b981' : symmetryScore >= 60 ? '#f59e0b' : '#ef4444' }}>{symmetryScore}%</p>
             </div>
 
@@ -878,11 +878,11 @@ export default function RepCounter() {
             <div className="glass" style={{
               padding: '20px',
               borderRadius: '16px',
-              backgroundColor: 'rgba(15, 23, 42, 0.6)',
-              border: '1px solid rgba(100, 116, 139, 0.3)',
+              backgroundColor: '#f6f9fc',
+              border: '1px solid #dbe3ef',
               textAlign: 'center'
             }}>
-              <p style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1.5px', color: '#94a3b8', marginBottom: '8px' }}>Session</p>
+              <p style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1.5px', color: '#64748b', marginBottom: '8px' }}>Session</p>
               <p style={{ fontSize: '20px', fontWeight: '700', color: '#a78bfa' }}>{Math.floor(sessionSeconds / 60)}:{String(sessionSeconds % 60).padStart(2, '0')}</p>
             </div>
           </div>
@@ -910,14 +910,14 @@ export default function RepCounter() {
             padding: '16px',
             marginTop: '16px',
             borderRadius: '12px',
-            backgroundColor: 'rgba(29, 78, 216, 0.1)',
-            border: '1px solid rgba(59, 130, 246, 0.3)'
+            backgroundColor: '#edf4ff',
+            border: '1px solid #bfd4f3'
           }}>
-            <p style={{ fontSize: '12px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px', color: '#60a5fa', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <p style={{ fontSize: '12px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px', color: '#2f6fb2', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <svg style={{ width: '16px', height: '16px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
               Instructions for {getExerciseConfig(exerciseMode).label}
             </p>
-            <ul style={{ listStyle: 'disc', paddingLeft: '20px', fontSize: '14px', color: '#cbd5e1', lineHeight: '1.8' }}>
+            <ul style={{ listStyle: 'disc', paddingLeft: '20px', fontSize: '14px', color: '#475569', lineHeight: '1.8' }}>
               {getExerciseConfig(exerciseMode).instructions.map((instruction, index) => (
                 <li key={index}>{instruction}</li>
               ))}

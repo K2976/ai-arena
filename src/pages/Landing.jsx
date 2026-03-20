@@ -23,6 +23,7 @@ import {
   getExerciseData,
   getClassesData
 } from '../services/wikipediaApi'
+import CircularGallery from '../components/CircularGallery'
 import './Landing.css'
 
 export default function Landing() {
@@ -78,6 +79,50 @@ export default function Landing() {
     }
   ]
 
+  const exerciseImageFallbacks = {
+    squat: 'https://images.unsplash.com/photo-1534258936925-c58bed479fcb?auto=format&fit=crop&w=1200&q=80',
+  }
+
+  const defaultCardImage = 'https://images.unsplash.com/photo-1571732154690-f6d1c3d98a10?auto=format&fit=crop&w=1200&q=80'
+  const heroFeatureItems = [
+    { image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&w=1200&q=80', text: 'Real-time AI feedback' },
+    { image: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&w=1200&q=80', text: 'Goal-based plans' },
+    { image: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=1200&q=80', text: 'Recovery insights' },
+    { image: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=1200&q=80', text: 'Posture tracking' },
+    { image: 'https://images.unsplash.com/photo-1549476464-37392f717541?auto=format&fit=crop&w=1200&q=80', text: 'Weekly consistency' },
+  ]
+
+  function getEquipmentType(name = '') {
+    const value = name.toLowerCase()
+    if (value.includes('bike') || value.includes('treadmill') || value.includes('rower')) {
+      return 'Cardio'
+    }
+    if (value.includes('dumbbell') || value.includes('barbell') || value.includes('kettlebell')) {
+      return 'Strength'
+    }
+    if (value.includes('cable') || value.includes('machine')) {
+      return 'Machine'
+    }
+    return 'Gym Essential'
+  }
+
+  function formatEquipmentSummary(item) {
+    const base = (item?.extract || '').replace(/\s+/g, ' ').trim()
+    if (!base) {
+      return 'Built for durability, control, and progressive overload training.'
+    }
+
+    const lowerName = (item?.name || '').toLowerCase()
+    let cleaned = base.replace(/^\s*the\s+/i, '').trim()
+
+    if (lowerName && cleaned.toLowerCase().startsWith(lowerName)) {
+      cleaned = cleaned.slice(item.name.length).replace(/^\s*[,.-]?\s*/, '')
+    }
+
+    const compact = cleaned.charAt(0).toUpperCase() + cleaned.slice(1)
+    return compact.length > 92 ? `${compact.slice(0, 92).trim()}...` : compact
+  }
+
   return (
     <motion.div
       className="gym-landing"
@@ -91,42 +136,69 @@ export default function Landing() {
           className="hero-bg"
           style={{
             backgroundImage: heroImage?.originalImage
-              ? `url(${heroImage.originalImage})`
+              ? `linear-gradient(135deg, rgba(247, 250, 248, 0.84) 0%, rgba(242, 247, 252, 0.84) 55%, rgba(238, 243, 250, 0.88) 100%), url(${heroImage.originalImage})`
               : heroImage?.thumbnail
-                ? `url(${heroImage.thumbnail})`
-                : 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)'
+                ? `linear-gradient(135deg, rgba(247, 250, 248, 0.84) 0%, rgba(242, 247, 252, 0.84) 55%, rgba(238, 243, 250, 0.88) 100%), url(${heroImage.thumbnail})`
+                : 'linear-gradient(135deg, #f7faf8 0%, #edf3fa 100%)'
           }}
         />
         <div className="hero-overlay" />
         <div className="hero-content">
           <motion.div
+            className="hero-shell"
             initial={{ y: 30, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.2 }}
           >
-            <span className="hero-badge">
-              <Flame size={16} /> Premium Fitness Center
-            </span>
-            <h1>Transform Your Body,<br />Transform Your Life</h1>
-            <p>
-              Join the ultimate fitness experience with state-of-the-art equipment,
-              expert trainers, and a community that pushes you to be your best.
-            </p>
-            <div className="hero-actions">
-              <Link to="/dashboard" className="btn-primary btn-lg">
-                Start Free Trial <ArrowRight size={18} />
-              </Link>
-              <Link to="/vision" className="btn-outline btn-lg">
-                View Classes
-              </Link>
+            <div className="hero-copy hero-reveal">
+              <span className="hero-badge">
+                <Flame size={16} /> Premium Fitness Center
+              </span>
+              <h1>Transform Your Body,<br />Transform Your Life</h1>
+              <p>
+                Train with AI-powered coaching, world-class equipment, and expert-led routines designed for sustainable progress.
+              </p>
+              <div className="hero-actions">
+                <Link to="/dashboard" className="btn-primary btn-lg">
+                  Start Free Trial <ArrowRight size={18} />
+                </Link>
+                <Link to="/vision" className="btn-outline btn-lg">
+                  Explore Workouts
+                </Link>
+              </div>
+              <div className="hero-gallery-wrap hero-reveal hero-reveal-delay-1">
+                <CircularGallery
+                  items={heroFeatureItems}
+                  bend={2.4}
+                  textColor="#2f6fb2"
+                  borderRadius={0.06}
+                  font="600 14px Sora"
+                  scrollSpeed={1.8}
+                  scrollEase={0.06}
+                />
+              </div>
             </div>
+
+            <aside className="hero-preview glass hero-reveal hero-reveal-delay-1">
+              <small>Today at ARIZE</small>
+              <h3>Smart Session Plan</h3>
+              <ul>
+                <li>Warm-up mobility: 5 min</li>
+                <li>Strength block: 4 exercises</li>
+                <li>AI form check: Enabled</li>
+                <li>Cooldown + stretch: 5 min</li>
+              </ul>
+              <div className="hero-preview-footer">
+                <span>Estimated duration: 35 to 40 min</span>
+                <Link to="/counter" className="btn-primary btn-sm">Open Counter</Link>
+              </div>
+            </aside>
           </motion.div>
         </div>
 
-        {/* Floating Stats */}
         <motion.div
-          className="hero-stats glass"
-          initial={{ y: 50, opacity: 0 }}
+          className="hero-stats glass hero-reveal hero-reveal-delay-2"
+          initial={{ y: 30, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.4 }}
         >
@@ -143,9 +215,9 @@ export default function Landing() {
       {/* Equipment Section */}
       <section className="section equipment-section">
         <div className="section-header">
-          <span className="section-tag"><Dumbbell size={14} /> Equipment</span>
-          <h2>World-Class Equipment</h2>
-          <p>Train with the best equipment from leading fitness brands</p>
+          <span className="section-tag"><Dumbbell size={14} /> Posture</span>
+          <h2>AI Posture Correction</h2>
+          <p>Improve movement quality with guided cues, controlled form, and smarter training mechanics</p>
         </div>
 
         <div className="equipment-grid">
@@ -168,11 +240,25 @@ export default function Landing() {
               >
                 <div className="equipment-img">
                   {item.thumbnail && (
-                    <img src={item.thumbnail} alt={item.name} loading="lazy" />
+                    <img
+                      src={item.thumbnail}
+                      alt={item.name}
+                      loading="lazy"
+                      onError={(event) => {
+                        event.currentTarget.src = defaultCardImage
+                      }}
+                    />
                   )}
+                  <span className="equipment-type">{getEquipmentType(item.name)}</span>
                 </div>
-                <h4>{item.name}</h4>
-                <p>{item.extract?.substring(0, 80)}...</p>
+                <div className="equipment-card-body">
+                  <h4>{item.name}</h4>
+                  <p>{formatEquipmentSummary(item)}</p>
+                  <div className="equipment-meta-row">
+                    <span>Form guidance</span>
+                    <span>Progressive load</span>
+                  </div>
+                </div>
               </motion.div>
             ))
           )}
@@ -209,9 +295,15 @@ export default function Landing() {
                 whileHover={{ scale: 1.03 }}
               >
                 <div className="exercise-img">
-                  {item.thumbnail && (
-                    <img src={item.thumbnail} alt={item.name} loading="lazy" />
-                  )}
+                  <img
+                    src={
+                      (item.name || '').toLowerCase().includes('squat')
+                        ? exerciseImageFallbacks.squat
+                        : (item.thumbnail || exerciseImageFallbacks.squat)
+                    }
+                    alt={item.name}
+                    loading="lazy"
+                  />
                   <div className="exercise-overlay">
                     <span>Learn More <ChevronRight size={16} /></span>
                   </div>
@@ -228,9 +320,9 @@ export default function Landing() {
       {/* Classes Section */}
       <section className="section classes-section">
         <div className="section-header">
-          <span className="section-tag"><Heart size={14} /> Classes</span>
-          <h2>Group Fitness Classes</h2>
-          <p>Join our high-energy classes led by certified instructors</p>
+          <span className="section-tag"><Heart size={14} /> Community</span>
+          <h2>Group Streak Battles</h2>
+          <p>Compete with your crew, maintain momentum, and climb weekly consistency leaderboards</p>
         </div>
 
         <div className="classes-grid">
@@ -252,7 +344,14 @@ export default function Landing() {
               >
                 <div className="class-img">
                   {item.thumbnail && (
-                    <img src={item.thumbnail} alt={item.name} loading="lazy" />
+                    <img
+                      src={item.thumbnail}
+                      alt={item.name}
+                      loading="lazy"
+                      onError={(event) => {
+                        event.currentTarget.src = defaultCardImage
+                      }}
+                    />
                   )}
                 </div>
                 <div className="class-content">
@@ -262,9 +361,6 @@ export default function Landing() {
                     <span><Clock size={14} /> 45 min</span>
                     <span><Zap size={14} /> High Intensity</span>
                   </div>
-                  <Link to="/vision" className="btn-primary btn-sm">
-                    Book Class
-                  </Link>
                 </div>
               </motion.div>
             ))
@@ -339,7 +435,7 @@ export default function Landing() {
       <footer className="gym-footer">
         <div className="footer-content">
           <div className="footer-brand">
-            <h3><Dumbbell size={24} /> AI Arena Gym</h3>
+            <h3><Dumbbell size={24} /> ARIZE</h3>
             <p>Your premium fitness destination</p>
           </div>
           <div className="footer-links">
@@ -357,7 +453,7 @@ export default function Landing() {
           </div>
         </div>
         <div className="footer-bottom">
-          <p>&copy; 2026 AI Arena Gym. All rights reserved.</p>
+          <p>&copy; 2026 ARIZE. All rights reserved.</p>
         </div>
       </footer>
     </motion.div>

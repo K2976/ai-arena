@@ -19,6 +19,7 @@ class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     age = models.PositiveIntegerField(null=True, blank=True)
     weight = models.FloatField(null=True, blank=True)
+    district = models.CharField(max_length=80, default='global')
     goal = models.CharField(max_length=32, choices=GOAL_CHOICES, default='maintenance')
     diet_type = models.CharField(max_length=32, choices=DIET_CHOICES, default='vegetarian')
     streak_days = models.PositiveIntegerField(default=0)
@@ -137,3 +138,39 @@ class NotificationPreference(models.Model):
     diet_suggestions = models.BooleanField(default=True)
     whatsapp_updates = models.BooleanField(default=False)
     updated_at = models.DateTimeField(auto_now=True)
+
+
+class Cart(models.Model):
+    """Shopping cart for authenticated users."""
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='shopping_cart')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Cart for {self.user.username}"
+
+    def get_total_items(self):
+        return sum(item.quantity for item in self.items.all())
+
+    def get_total_price(self):
+        return sum(item.get_subtotal() for item in self.items.all())
+
+
+class CartItem(models.Model):
+    """Individual item in the shopping cart."""
+    cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name='items')
+    product_name = models.CharField(max_length=256)
+    product_image = models.URLField(blank=True)
+    product_category = models.CharField(max_length=64, default='food')
+    wikipedia_url = models.URLField(blank=True)
+    amazon_url = models.URLField(blank=True)
+    flipkart_url = models.URLField(blank=True)
+    quantity = models.PositiveIntegerField(default=1)
+    price_estimate = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.product_name} x{self.quantity}"
+
+    def get_subtotal(self):
+        return self.price_estimate * self.quantity

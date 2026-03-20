@@ -5,11 +5,20 @@ from dotenv import load_dotenv
 import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = BASE_DIR.parent
+
+# Load backend-local env first, then project-root env for shared keys.
 load_dotenv(BASE_DIR / '.env')
+load_dotenv(PROJECT_ROOT / '.env')
 
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'dev-secret-change-me')
 DEBUG = os.getenv('DJANGO_DEBUG', '1') == '1'
 ALLOWED_HOSTS = [host.strip() for host in os.getenv('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')]
+
+# In local development, allow LAN/IP testing without manual host updates.
+if DEBUG:
+    if '*' not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append('*')
 
 # AI API Configuration
 GROQ_API_KEY = os.getenv('GROQ_API_KEY', '')
@@ -92,7 +101,15 @@ USE_TZ = True
 STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-CORS_ALLOWED_ORIGINS = [origin.strip() for origin in os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:5173').split(',')]
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173').split(',')
+    if origin.strip()
+]
+
+# In local development, allow any origin for LAN/mobile testing.
+CORS_ALLOW_ALL_ORIGINS = DEBUG
+CORS_ALLOW_CREDENTIALS = True
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (

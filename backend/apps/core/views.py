@@ -1,7 +1,11 @@
 from django.contrib.auth.models import User
-from django.db.models import Avg, Sum
+from datetime import timedelta
+
+from django.db.models import Avg, Count, Q, Sum
+from django.utils import timezone
 from rest_framework import permissions, status
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -19,6 +23,8 @@ from .models import (
     MusicRecommendation,
     ProgressPhoto,
     NotificationPreference,
+    Cart,
+    CartItem,
 )
 from .serializers import (
     SignupSerializer,
@@ -27,6 +33,7 @@ from .serializers import (
     FoodSearchSerializer,
     WorkoutSessionSerializer,
     CVAnalyzeSerializer,
+    VideoWorkoutAnalyzeSerializer,
     NutritionLogSerializer,
     FoodImageSerializer,
     SleepLogSerializer,
@@ -38,12 +45,15 @@ from .serializers import (
     MusicSerializer,
     ProgressPhotoSerializer,
     NotificationPreferenceSerializer,
+    CartSerializer,
+    AddToCartSerializer,
 )
 from .services import (
     build_rag_response,
     nutrition_lookup,
     workout_recommendation,
     ai_workout_recommendation,
+    gymnasium_workout_analysis,
     ai_workout_analysis,
     consistency_feedback,
     mood_playlist,
@@ -52,7 +62,19 @@ from .services import (
     fastapi_post,
     calculate_streak,
     recognize_food_from_image,
+    search_wikipedia_products,
+    generate_shopping_links,
+    ai_shopping_chat,
+    groq_calorie_lookup,
+    retrieve_chat_memory_context,
 )
+
+
+def get_effective_user(request):
+    """Return authenticated user or None for guest requests."""
+    if request.user and request.user.is_authenticated:
+        return request.user
+    return None
 
 
 class HealthView(APIView):
@@ -84,9 +106,16 @@ class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
-        username = request.data.get('username')
+        username = (request.data.get('username') or '').strip()
         password = request.data.get('password')
+
+        if not username or not password:
+            return Response({'detail': 'Username/email and password are required'}, status=status.HTTP_400_BAD_REQUEST)
+
         user = User.objects.filter(username=username).first()
+        if not user and '@' in username:
+            user = User.objects.filter(email__iexact=username).first()
+
         if not user or not user.check_password(password):
             return Response({'detail': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
 
@@ -214,9 +243,90 @@ class CVAnalyzeView(APIView):
         return Response({'analysis': fastapi_result, 'session': WorkoutSessionSerializer(workout).data}, status=status.HTTP_201_CREATED)
 
 
+class VideoWorkoutAnalyzeView(APIView):
+    """Analyze uploaded workout video and run Gymnasium-based intensity assessment."""
+    permission_classes = [permissions.AllowAny]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        serializer = VideoWorkoutAnalyzeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        video_file = serializer.validated_data['video']
+        exercise_name = serializer.validated_data.get('exercise_name', 'Workout Session') or 'Workout Session'
+        duration_seconds = float(serializer.validated_data.get('duration_seconds', 0) or 0)
+
+        # Heuristic metrics from uploaded video for lightweight backend analysis.
+        file_size_mb = round(video_file.size / (1024 * 1024), 2)
+        derived_duration = duration_seconds if duration_seconds > 0 else max(20.0, min(file_size_mb * 18.0, 3600.0))
+
+        estimated_reps = max(5, int(derived_duration / 4.5))
+        duration_minutes = max(1, int(round(derived_duration / 60.0)))
+        estimated_fatigue = max(20.0, min(90.0, 35.0 + (derived_duration / 40.0)))
+        estimated_performance = max(40.0, min(95.0, 68.0 + min(estimated_reps / 20.0, 20.0) - (estimated_fatigue - 50.0) * 0.15))
+
+        ai_result = ai_workout_analysis(
+            exercise_name=exercise_name,
+            reps=estimated_reps,
+            duration=int(derived_duration),
+            form_notes='Video upload auto-analysis',
+        )
+
+        gym_analysis = gymnasium_workout_analysis(
+            {
+                'fatigue': estimated_fatigue,
+                'sleep_hours': 7,
+                'performance': estimated_performance,
+                'streak': 3,
+            }
+        )
+
+        analysis_payload = {
+            'exercise_name': exercise_name,
+            'estimated_reps': estimated_reps,
+            'duration_seconds': round(derived_duration, 1),
+            'duration_minutes': duration_minutes,
+            'video_size_mb': file_size_mb,
+            'form_score': ai_result.get('form_score', 75),
+            'calories_burned': ai_result.get('calories_burned', max(30, estimated_reps * 3)),
+            'feedback': ai_result.get('feedback', 'Keep controlled movement and proper breathing.'),
+            'gym_analysis': gym_analysis,
+            'source': 'video_upload_gymnasium',
+        }
+
+        current_user = get_effective_user(request)
+        session_payload = None
+        if current_user:
+            workout = WorkoutSession.objects.create(
+                user=current_user,
+                exercise_name=exercise_name,
+                reps=estimated_reps,
+                duration_minutes=duration_minutes,
+                form_score=analysis_payload['form_score'],
+                calories_burned=analysis_payload['calories_burned'],
+            )
+            session_payload = WorkoutSessionSerializer(workout).data
+
+        return Response({'analysis': analysis_payload, 'session': session_payload}, status=status.HTTP_201_CREATED)
+
+
 class WorkoutSummaryView(APIView):
+    permission_classes = [permissions.AllowAny]
+
     def get(self, request):
-        sessions = list(WorkoutSession.objects.filter(user=request.user).order_by('-created_at')[:20])
+        current_user = get_effective_user(request)
+        if not current_user:
+            return Response(
+                {
+                    'total_sessions': 0,
+                    'total_reps': 0,
+                    'avg_form_score': 0,
+                    'recent': [],
+                    'guest_mode': True,
+                }
+            )
+
+        sessions = list(WorkoutSession.objects.filter(user=current_user).order_by('-created_at')[:20])
         total_reps = sum(session.reps for session in sessions)
         avg_form = sum(session.form_score for session in sessions) / len(sessions) if sessions else 0
         return Response(
@@ -225,14 +335,18 @@ class WorkoutSummaryView(APIView):
                 'total_reps': total_reps,
                 'avg_form_score': round(avg_form, 2),
                 'recent': WorkoutSessionSerializer(sessions[:5], many=True).data,
+                'guest_mode': False,
             }
         )
 
 
 class FoodRecognitionView(APIView):
+    permission_classes = [permissions.AllowAny]
+
     def post(self, request):
         serializer = FoodImageSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        current_user = get_effective_user(request)
 
         image_data = serializer.validated_data.get('image_data')
         image_url = serializer.validated_data.get('image_url')
@@ -240,15 +354,25 @@ class FoodRecognitionView(APIView):
         # Try Gemini Vision API first with image_data
         if image_data:
             gemini_result = recognize_food_from_image(image_data)
-            if gemini_result:
-                nutrition = NutritionLog.objects.create(
-                    user=request.user,
-                    food_name=gemini_result['food'],
-                    calories=gemini_result['calories'],
-                    protein=gemini_result['protein'],
-                    carbs=gemini_result['carbs'],
-                    fats=gemini_result['fats'],
+            if gemini_result and gemini_result.get('error') == 'gemini_quota_exceeded':
+                return Response(
+                    {
+                        'detail': 'Gemini API quota exceeded. Please add billing or use a key with available quota and try again.'
+                    },
+                    status=status.HTTP_429_TOO_MANY_REQUESTS,
                 )
+
+            if gemini_result:
+                nutrition = None
+                if current_user:
+                    nutrition = NutritionLog.objects.create(
+                        user=current_user,
+                        food_name=gemini_result['food'],
+                        calories=gemini_result['calories'],
+                        protein=gemini_result['protein'],
+                        carbs=gemini_result['carbs'],
+                        fats=gemini_result['fats'],
+                    )
                 return Response({
                     'recognition': {
                         'detected_food': gemini_result['food'],
@@ -258,8 +382,15 @@ class FoodRecognitionView(APIView):
                         'fats': gemini_result['fats'],
                         'source': 'gemini_vision'
                     },
-                    'saved': NutritionLogSerializer(nutrition).data
+                    'saved': NutritionLogSerializer(nutrition).data if nutrition else None
                 })
+
+            return Response(
+                {
+                    'detail': 'Image analysis failed. Gemini could not detect food nutrition from this image. Please try a clearer food image.'
+                },
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
 
         # Fallback: try FastAPI service if Gemini fails
         fallback_data = {}
@@ -269,46 +400,85 @@ class FoodRecognitionView(APIView):
         fastapi_result = fastapi_post('/nutrition/recognize', fallback_data) if fallback_data else None
 
         if not fastapi_result:
-            detected = nutrition_lookup('sample meal')
-            fastapi_result = {
-                'detected_food': detected['food'],
-                'calories': detected['calories'],
-                'protein': detected['protein'],
-                'carbs': detected['carbs'],
-                'fats': detected['fats'],
-            }
+            return Response(
+                {'detail': 'No valid image input provided for recognition.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-        nutrition = NutritionLog.objects.create(
-            user=request.user,
-            food_name=fastapi_result['detected_food'],
-            calories=fastapi_result['calories'],
-            protein=fastapi_result['protein'],
-            carbs=fastapi_result['carbs'],
-            fats=fastapi_result['fats'],
-        )
-        return Response({'recognition': fastapi_result, 'saved': NutritionLogSerializer(nutrition).data})
+        nutrition = None
+        if current_user:
+            nutrition = NutritionLog.objects.create(
+                user=current_user,
+                food_name=fastapi_result['detected_food'],
+                calories=fastapi_result['calories'],
+                protein=fastapi_result['protein'],
+                carbs=fastapi_result['carbs'],
+                fats=fastapi_result['fats'],
+            )
+        return Response({'recognition': fastapi_result, 'saved': NutritionLogSerializer(nutrition).data if nutrition else None})
 
 
 class NutritionSearchView(APIView):
+    permission_classes = [permissions.AllowAny]
+
     def post(self, request):
         serializer = FoodSearchSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        current_user = get_effective_user(request)
         result = nutrition_lookup(serializer.validated_data['query'])
 
-        entry = NutritionLog.objects.create(
-            user=request.user,
-            food_name=result['food'],
-            calories=result['calories'],
-            protein=result['protein'],
-            carbs=result['carbs'],
-            fats=result['fats'],
-        )
-        return Response({'result': result, 'saved': NutritionLogSerializer(entry).data})
+        entry = None
+        if current_user:
+            entry = NutritionLog.objects.create(
+                user=current_user,
+                food_name=result['food'],
+                calories=result['calories'],
+                protein=result['protein'],
+                carbs=result['carbs'],
+                fats=result['fats'],
+            )
+        return Response({'result': result, 'saved': NutritionLogSerializer(entry).data if entry else None})
+
+
+class NutritionSearchGroqView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = FoodSearchSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        current_user = get_effective_user(request)
+        query = serializer.validated_data['query']
+        result = groq_calorie_lookup(query)
+
+        if not result:
+            return Response(
+                {'detail': 'Groq food search is currently unavailable. Please try again shortly.'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        entry = None
+        if current_user:
+            entry = NutritionLog.objects.create(
+                user=current_user,
+                food_name=result['food'],
+                calories=result['calories'],
+                protein=result['protein'],
+                carbs=result['carbs'],
+                fats=result['fats'],
+            )
+
+        return Response({'result': result, 'saved': NutritionLogSerializer(entry).data if entry else None})
 
 
 class NutritionLogsView(APIView):
+    permission_classes = [permissions.AllowAny]
+
     def get(self, request):
-        logs = NutritionLog.objects.filter(user=request.user).order_by('-created_at')[:50]
+        current_user = get_effective_user(request)
+        if not current_user:
+            return Response([])
+        logs = NutritionLog.objects.filter(user=current_user).order_by('-created_at')[:50]
         return Response(NutritionLogSerializer(logs, many=True).data)
 
 
@@ -325,9 +495,29 @@ class SleepLogView(APIView):
 
 
 class ConsistencyAnalyticsView(APIView):
+    permission_classes = [permissions.AllowAny]
+
     def get(self, request):
-        profile, _ = UserProfile.objects.get_or_create(user=request.user)
-        workout_count = WorkoutSession.objects.filter(user=request.user).count()
+        current_user = get_effective_user(request)
+        if not current_user:
+            streak_days = int(request.query_params.get('streak_days', 0) or 0)
+            missed_workouts = max(0, 7 - min(streak_days, 7))
+            current_score = max(0, min(100, 100 - (missed_workouts * 10)))
+            previous_score = max(0, current_score - 15)
+            feedback = consistency_feedback(missed_workouts, previous_score, current_score)
+            return Response(
+                {
+                    'streak_days': streak_days,
+                    'missed_workouts': missed_workouts,
+                    'weekly_consistency_score': current_score,
+                    'feedback': feedback,
+                    'district': 'global',
+                    'guest_mode': True,
+                }
+            )
+
+        profile, _ = UserProfile.objects.get_or_create(user=current_user)
+        workout_count = WorkoutSession.objects.filter(user=current_user).count()
         missed_workouts = max(0, 7 - min(workout_count, 7))
         current_score = max(0, min(100, 100 - (missed_workouts * 10)))
         previous_score = max(0, current_score - 20)
@@ -341,6 +531,91 @@ class ConsistencyAnalyticsView(APIView):
                 'missed_workouts': missed_workouts,
                 'weekly_consistency_score': current_score,
                 'feedback': feedback,
+                'district': profile.district,
+                'guest_mode': False,
+            }
+        )
+
+
+class StreakLeaderboardView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        district = (request.query_params.get('district') or '').strip()
+        try:
+            limit = int(request.query_params.get('limit', 10) or 10)
+        except (TypeError, ValueError):
+            limit = 10
+        limit = max(1, min(limit, 50))
+
+        current_user = get_effective_user(request)
+
+        if not district and current_user:
+            profile, _ = UserProfile.objects.get_or_create(user=current_user)
+            district = (profile.district or 'global').strip()
+
+        district = district or 'global'
+        seven_days_ago = timezone.now() - timedelta(days=7)
+
+        profiles = (
+            UserProfile.objects.select_related('user')
+            .filter(district__iexact=district)
+            .annotate(
+                weekly_sessions=Count(
+                    'user__workout_sessions',
+                    filter=Q(user__workout_sessions__created_at__gte=seven_days_ago),
+                )
+            )
+        )
+
+        ranked_rows = []
+        for profile in profiles:
+            weekly_score = max(0, min(100, 100 - (max(0, 7 - min(profile.weekly_sessions, 7)) * 10)))
+            gamified_points = int((profile.streak_days * 10) + (weekly_score * 2) + (profile.weekly_sessions * 3))
+            ranked_rows.append(
+                {
+                    'username': profile.user.username,
+                    'district': profile.district,
+                    'streak_days': profile.streak_days,
+                    'weekly_sessions': int(profile.weekly_sessions),
+                    'weekly_consistency_score': weekly_score,
+                    'gamified_points': gamified_points,
+                }
+            )
+
+        ranked_rows.sort(
+            key=lambda row: (
+                -row['streak_days'],
+                -row['weekly_consistency_score'],
+                -row['gamified_points'],
+                row['username'].lower(),
+            )
+        )
+
+        for index, row in enumerate(ranked_rows, start=1):
+            row['rank'] = index
+
+        top_rows = ranked_rows[:limit]
+        current_user_row = None
+        if current_user:
+            current_user_row = next((row for row in ranked_rows if row['username'] == current_user.username), None)
+
+        available_districts = list(
+            UserProfile.objects.exclude(district__isnull=True)
+            .exclude(district__exact='')
+            .values_list('district', flat=True)
+            .distinct()
+            .order_by('district')[:100]
+        )
+
+        return Response(
+            {
+                'district': district,
+                'leaderboard': top_rows,
+                'total_participants': len(ranked_rows),
+                'current_user': current_user_row,
+                'available_districts': available_districts,
+                'guest_mode': current_user is None,
             }
         )
 
@@ -373,73 +648,142 @@ class RAGMemoryView(APIView):
 
 
 class ChatAskView(APIView):
+    permission_classes = [permissions.AllowAny]
+
     def post(self, request):
         serializer = ChatSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        profile, _ = UserProfile.objects.get_or_create(user=request.user)
+        current_user = get_effective_user(request)
 
-        # Get recent workout and nutrition data for context
-        recent_workouts = WorkoutSession.objects.filter(user=request.user).order_by('-created_at')[:5]
-        recent_sleep = SleepLog.objects.filter(user=request.user).order_by('-created_at').first()
+        if current_user:
+            profile, _ = UserProfile.objects.get_or_create(user=current_user)
+            recent_workouts = WorkoutSession.objects.filter(user=current_user).order_by('-created_at')[:5]
+            recent_sleep = SleepLog.objects.filter(user=current_user).order_by('-created_at').first()
+            memory_context = retrieve_chat_memory_context(current_user, serializer.validated_data['message'])
 
-        context = {
-            'profile': {
-                'goal': profile.goal,
-                'diet_type': profile.diet_type,
-                'streak_days': profile.streak_days,
-                'weight': profile.weight,
-            },
-            'recent': {
-                'recent_workouts': ', '.join([w.exercise_name for w in recent_workouts]) if recent_workouts else 'None',
-                'avg_calories': sum(w.calories_burned for w in recent_workouts) // len(recent_workouts) if recent_workouts else 0,
-                'avg_sleep': recent_sleep.hours if recent_sleep else 7,
+            context = {
+                'profile': {
+                    'goal': profile.goal,
+                    'diet_type': profile.diet_type,
+                    'streak_days': profile.streak_days,
+                    'weight': profile.weight,
+                },
+                'recent': {
+                    'recent_workouts': ', '.join([w.exercise_name for w in recent_workouts]) if recent_workouts else 'None',
+                    'avg_calories': sum(w.calories_burned for w in recent_workouts) // len(recent_workouts) if recent_workouts else 0,
+                    'avg_sleep': recent_sleep.hours if recent_sleep else 7,
+                    'memory_context': memory_context,
+                }
             }
-        }
+        else:
+            # Guest-mode context so Groq chat still works without authentication.
+            context = {
+                'profile': {
+                    'goal': request.data.get('goal', 'maintenance'),
+                    'diet_type': request.data.get('diet_type', 'balanced'),
+                    'streak_days': int(request.data.get('streak_days', 0) or 0),
+                    'weight': request.data.get('weight'),
+                },
+                'recent': {
+                    'recent_workouts': request.data.get('recent_workouts', 'None'),
+                    'avg_calories': int(request.data.get('avg_calories', 0) or 0),
+                    'avg_sleep': float(request.data.get('avg_sleep', 7) or 7),
+                }
+            }
 
         # Try FastAPI service first, fall back to Groq-powered response
         fastapi_result = fastapi_post('/chat/respond', {'message': serializer.validated_data['message'], 'context': context})
         response_data = fastapi_result or build_rag_response(serializer.validated_data['message'], context)
 
-        RAGMemoryEntry.objects.create(
-            user=request.user,
-            source_type='chat',
-            content=serializer.validated_data['message'],
-            embedding_preview=response_data.get('embedding_preview', pseudo_embedding(serializer.validated_data['message'])),
-        )
+        if current_user:
+            RAGMemoryEntry.objects.create(
+                user=current_user,
+                source_type='chat',
+                content=serializer.validated_data['message'],
+                embedding_preview=response_data.get('embedding_preview', pseudo_embedding(serializer.validated_data['message'])),
+            )
+
+            answer_text = (response_data or {}).get('answer', '')
+            if answer_text:
+                RAGMemoryEntry.objects.create(
+                    user=current_user,
+                    source_type='chat',
+                    content=f'Assistant: {answer_text}',
+                    embedding_preview=pseudo_embedding(answer_text),
+                )
         return Response(response_data)
 
 
 class RecommendationEngineView(APIView):
+    permission_classes = [permissions.AllowAny]
+
     def post(self, request):
         serializer = RecommendationRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        # Get user profile for personalized recommendations
-        profile, _ = UserProfile.objects.get_or_create(user=request.user)
-        last_workout = WorkoutSession.objects.filter(user=request.user).order_by('-created_at').first()
+        current_user = get_effective_user(request)
 
-        # Always use AI-powered recommendations (Groq)
-        user_profile = {'goal': profile.goal, 'diet_type': profile.diet_type}
+        if current_user:
+            profile, _ = UserProfile.objects.get_or_create(user=current_user)
+            last_workout = WorkoutSession.objects.filter(user=current_user).order_by('-created_at').first()
+            user_profile = {'goal': profile.goal, 'diet_type': profile.diet_type}
+            streak_days = profile.streak_days
+        else:
+            last_workout = None
+            user_profile = {
+                'goal': request.data.get('goal', 'maintenance'),
+                'diet_type': request.data.get('diet_type', 'balanced'),
+            }
+            streak_days = serializer.validated_data.get('streak', 0)
+
         recent_metrics = {
-            'streak': profile.streak_days,
+            'streak': streak_days,
             'sleep_hours': serializer.validated_data.get('sleep_hours', 7),
             'fatigue': serializer.validated_data.get('fatigue', 50),
             'performance': serializer.validated_data.get('performance', 70),
             'last_workout': last_workout.exercise_name if last_workout else 'None'
         }
-        recommendation = ai_workout_recommendation(user_profile, recent_metrics)
 
-        if 'ai_recommendation' not in recommendation:
-            # Use rule-based if AI fails
-            recommendation = workout_recommendation(**serializer.validated_data)
-
-        RecommendationLog.objects.create(
-            user=request.user,
-            intensity=recommendation.get('intensity', 'moderate'),
-            reason=recommendation.get('note', recommendation.get('ai_recommendation', '')),
+        # Structured baseline for UI cards.
+        baseline = workout_recommendation(
+            serializer.validated_data.get('fatigue', 50),
+            streak_days,
+            serializer.validated_data.get('sleep_hours', 7),
+            serializer.validated_data.get('performance', 70),
         )
-        return Response(recommendation)
+
+        gym_analysis = gymnasium_workout_analysis(recent_metrics)
+        mode = baseline.get('intensity', 'moderate')
+        if gym_analysis and gym_analysis.get('best_mode'):
+            # Trust Gymnasium recommendation when confidence is reasonable.
+            confidence = float(gym_analysis.get('confidence', 0) or 0)
+            if confidence >= 55:
+                mode = gym_analysis.get('best_mode', mode)
+
+        ai_result = ai_workout_recommendation(user_profile, recent_metrics)
+        ai_text = ai_result.get('ai_recommendation', '') if isinstance(ai_result, dict) else ''
+
+        response_payload = {
+            'source': 'groq_ai' if ai_text else baseline.get('source', 'rule_based'),
+            'readiness_percent': gym_analysis.get('readiness_score', baseline.get('readiness_score', 70)) if gym_analysis else baseline.get('readiness_score', 70),
+            'mode': mode,
+            'sleep_quality': 'moderate' if recent_metrics['sleep_hours'] >= 6 else 'low',
+            'streak_trend': 'stable' if streak_days >= 2 else 'building',
+            'action': baseline.get('note', ''),
+            'suggested_exercises': baseline.get('suggested_exercises', []),
+            'ai_recommendation': ai_text,
+            'gym_analysis': gym_analysis,
+        }
+
+        if current_user:
+            RecommendationLog.objects.create(
+                user=current_user,
+                intensity=response_payload.get('mode', 'moderate'),
+                reason=response_payload.get('ai_recommendation') or response_payload.get('action', ''),
+            )
+
+        return Response(response_payload)
 
 
 class WhatsAppBotView(APIView):
@@ -451,31 +795,48 @@ class WhatsAppBotView(APIView):
 
 
 class ShoppingSuggestionView(APIView):
+    permission_classes = [permissions.AllowAny]
+
     def post(self, request):
         serializer = ShoppingSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        # Get user's goal for personalized suggestions
-        profile, _ = UserProfile.objects.get_or_create(user=request.user)
+        current_user = get_effective_user(request)
+        goal = 'maintenance'
+        if current_user:
+            profile, _ = UserProfile.objects.get_or_create(user=current_user)
+            goal = profile.goal
+
         suggestions = shopping_suggestions(
             serializer.validated_data['preference'],
-            goal=profile.goal
+            goal=goal
         )
 
         saved = []
-        for suggestion in suggestions:
-            item = ShoppingSuggestion.objects.create(user=request.user, **suggestion)
-            saved.append({'id': item.id, **suggestion})
+        if current_user:
+            for suggestion in suggestions:
+                item = ShoppingSuggestion.objects.create(user=current_user, **suggestion)
+                saved.append({'id': item.id, **suggestion})
+        else:
+            for index, suggestion in enumerate(suggestions, start=1):
+                saved.append({'id': index, **suggestion})
         return Response({'suggestions': saved})
 
 
 class MusicRecommendationView(APIView):
+    permission_classes = [permissions.AllowAny]
+
     def post(self, request):
         serializer = MusicSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         recommendation = mood_playlist(serializer.validated_data['mood'])
-        record = MusicRecommendation.objects.create(user=request.user, mood=serializer.validated_data['mood'], **recommendation)
-        return Response({'id': record.id, **recommendation})
+
+        user = request.user if getattr(request.user, 'is_authenticated', False) else None
+        if user:
+            record = MusicRecommendation.objects.create(user=user, mood=serializer.validated_data['mood'], **recommendation)
+            return Response({'id': record.id, **recommendation})
+
+        return Response({'id': None, **recommendation})
 
 
 class ProgressPhotoView(APIView):
@@ -520,6 +881,224 @@ class AnalyticsOverviewView(APIView):
         )
 
 
+class CartView(APIView):
+    """Get or clear user's shopping cart. Works for authenticated and guests."""
+    permission_classes = [permissions.AllowAny]
+
+    def get_or_create_cart(self, request):
+        """Get or create cart for authenticated user or guest."""
+        if request.user and request.user.is_authenticated:
+            cart, _ = Cart.objects.get_or_create(user=request.user)
+        else:
+            # Guest cart stored in session
+            if 'cart_id' not in request.session:
+                request.session['cart_id'] = str(request.session.session_key) or 'guest'
+            # For guests, return session data (not DB)
+            cart = {'items': [], 'total': 0}
+        return cart
+
+    def get(self, request):
+        cart, _ = Cart.objects.get_or_create(user=request.user) if request.user.is_authenticated else (None, False)
+        if cart:
+            return Response(CartSerializer(cart).data)
+        else:
+            # Return guest cart from session
+            guest_items = request.session.get('guest_cart', [])
+            total_items = sum(int(item.get('quantity', 1)) for item in guest_items)
+            total_price = sum(float(item.get('price_estimate', 0)) * int(item.get('quantity', 1)) for item in guest_items)
+            return Response({'items': guest_items, 'total_items': total_items, 'total_price': round(total_price, 2)})
+
+    def delete(self, request):
+        """Clear entire cart."""
+        if request.user.is_authenticated:
+            cart, _ = Cart.objects.get_or_create(user=request.user)
+            cart.items.all().delete()
+            return Response({'message': 'Cart cleared'})
+        else:
+            request.session['guest_cart'] = []
+            request.session.modified = True
+            return Response({'message': 'Cart cleared'})
+
+
+class AddToCartView(APIView):
+    """Add item to shopping cart. Works for authenticated and guests."""
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = AddToCartSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        if request.user and request.user.is_authenticated:
+            # Authenticated user
+            cart, _ = Cart.objects.get_or_create(user=request.user)
+            cart_item = cart.items.filter(product_name__iexact=serializer.validated_data['product_name']).first()
+            if cart_item:
+                cart_item.quantity += serializer.validated_data.get('quantity', 1)
+                cart_item.save()
+            else:
+                CartItem.objects.create(cart=cart, **serializer.validated_data)
+            return Response(CartSerializer(cart).data, status=status.HTTP_201_CREATED)
+        else:
+            # Guest cart in session
+            guest_cart = request.session.get('guest_cart', [])
+            next_id = max([int(item.get('id', 0)) for item in guest_cart], default=0) + 1
+
+            # Session data must be JSON-serializable.
+            item_data = {
+                'id': next_id,
+                'product_name': serializer.validated_data.get('product_name', ''),
+                'product_image': serializer.validated_data.get('product_image', ''),
+                'product_category': serializer.validated_data.get('product_category', 'food'),
+                'wikipedia_url': serializer.validated_data.get('wikipedia_url', ''),
+                'amazon_url': serializer.validated_data.get('amazon_url', ''),
+                'flipkart_url': serializer.validated_data.get('flipkart_url', ''),
+                'quantity': int(serializer.validated_data.get('quantity', 1)),
+                'price_estimate': float(serializer.validated_data.get('price_estimate', 0) or 0),
+            }
+
+            # Check if item exists
+            existing = next((item for item in guest_cart if item['product_name'].lower() == item_data['product_name'].lower()), None)
+            if existing:
+                existing['quantity'] = int(existing.get('quantity', 1)) + int(item_data.get('quantity', 1))
+            else:
+                guest_cart.append(item_data)
+
+            request.session['guest_cart'] = guest_cart
+            request.session.modified = True
+
+            total_items = sum(int(item.get('quantity', 1)) for item in guest_cart)
+            total_price = sum(float(item.get('price_estimate', 0)) * int(item.get('quantity', 1)) for item in guest_cart)
+            return Response(
+                {
+                    'items': guest_cart,
+                    'total_items': total_items,
+                    'total_price': round(total_price, 2),
+                    'message': 'Added to cart',
+                },
+                status=status.HTTP_201_CREATED,
+            )
+
+
+class RemoveFromCartView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    """Remove item from shopping cart."""
+    def delete(self, request, item_id):
+        if request.user and request.user.is_authenticated:
+            try:
+                cart = request.user.shopping_cart
+                cart_item = cart.items.get(id=item_id)
+                cart_item.delete()
+                return Response(CartSerializer(cart).data)
+            except (Cart.DoesNotExist, CartItem.DoesNotExist):
+                return Response({'error': 'Item not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        guest_cart = request.session.get('guest_cart', [])
+        updated_guest_cart = [item for item in guest_cart if int(item.get('id', -1)) != int(item_id)]
+        if len(updated_guest_cart) == len(guest_cart):
+            return Response({'error': 'Item not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        request.session['guest_cart'] = updated_guest_cart
+        request.session.modified = True
+        total_items = sum(int(item.get('quantity', 1)) for item in updated_guest_cart)
+        total_price = sum(float(item.get('price_estimate', 0)) * int(item.get('quantity', 1)) for item in updated_guest_cart)
+        return Response({'items': updated_guest_cart, 'total_items': total_items, 'total_price': round(total_price, 2)})
+
+
+class UpdateCartItemView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    """Update cart item quantity."""
+    def put(self, request, item_id):
+        try:
+            quantity = int(request.data.get('quantity', 1))
+        except (TypeError, ValueError):
+            return Response({'error': 'Invalid quantity'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if request.user and request.user.is_authenticated:
+            try:
+                cart = request.user.shopping_cart
+                cart_item = cart.items.get(id=item_id)
+
+                if quantity <= 0:
+                    cart_item.delete()
+                else:
+                    cart_item.quantity = quantity
+                    cart_item.save()
+
+                return Response(CartSerializer(cart).data)
+            except (Cart.DoesNotExist, CartItem.DoesNotExist):
+                return Response({'error': 'Item not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        guest_cart = request.session.get('guest_cart', [])
+        updated = False
+        next_cart = []
+        for item in guest_cart:
+            if int(item.get('id', -1)) == int(item_id):
+                updated = True
+                if quantity > 0:
+                    item['quantity'] = quantity
+                    next_cart.append(item)
+            else:
+                next_cart.append(item)
+
+        if not updated:
+            return Response({'error': 'Item not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        request.session['guest_cart'] = next_cart
+        request.session.modified = True
+        total_items = sum(int(item.get('quantity', 1)) for item in next_cart)
+        total_price = sum(float(item.get('price_estimate', 0)) * int(item.get('quantity', 1)) for item in next_cart)
+        return Response({'items': next_cart, 'total_items': total_items, 'total_price': round(total_price, 2)})
+
+
+class WikipediaSearchView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    """Search Wikipedia for health/nutrition products."""
+    def get(self, request):
+        query = request.query_params.get('query', '') or request.query_params.get('q', '')
+        limit = int(request.query_params.get('limit', 5))
+
+        if not query:
+            return Response({'error': 'Query parameter required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        products = search_wikipedia_products(query, limit=limit)
+
+        # Add shopping links to each product
+        for product in products:
+            product['shopping_links'] = generate_shopping_links(product['title'])
+
+        return Response({'products': products})
+
+
+class ShoppingChatView(APIView):
+    """AI Shopping Chat - Chat with AI to find products."""
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        user_message = request.data.get('message', '')
+        if not user_message:
+            return Response({'error': 'Message required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Get user profile if authenticated
+        user_profile = {}
+        if request.user and request.user.is_authenticated:
+            try:
+                profile = UserProfile.objects.get(user=request.user)
+                user_profile = {
+                    'goal': profile.goal or 'maintenance',
+                    'diet_type': profile.diet_type or 'vegetarian',
+                }
+            except:
+                pass
+
+        # Get AI shopping response
+        result = ai_shopping_chat(user_message, user_profile)
+
+        return Response(result)
+
+
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
 def feature_index(request):
@@ -549,6 +1128,8 @@ def feature_index(request):
                 'notifications',
                 'analytics_dashboard',
                 'security_jwt',
+                'shopping_cart',
+                'wikipedia_products',
             ]
         }
     )

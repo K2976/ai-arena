@@ -1,9 +1,12 @@
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Activity, LayoutDashboard, MessageSquare, Scan, PieChart, Utensils, Smartphone, Calculator } from 'lucide-react'
+import { clearAuthSession, isAuthenticated } from '../services/api'
 import './Navbar.css'
 
 export default function Navbar() {
   const location = useLocation()
+  const navigate = useNavigate()
+  const authenticated = isAuthenticated()
 
   const navItems = [
     { path: '/', label: 'Overview', icon: <Activity size={16} /> },
@@ -16,11 +19,16 @@ export default function Navbar() {
     { path: '/counter', label: 'Rep Counter', icon: <Calculator size={16} /> },
   ]
 
+  const handleLogout = () => {
+    clearAuthSession()
+    navigate('/login')
+  }
+
   return (
     <nav className="navbar-v2">
       <div className="nav-brand">
         <Activity size={24} className="accent-green" />
-        <span className="brand-name">BeastTrack</span>
+        <span className="brand-name">ARIZE</span>
       </div>
       <ul className="nav-links-v2">
         {navItems.map((item) => (
@@ -33,7 +41,17 @@ export default function Navbar() {
         ))}
       </ul>
       <div className="nav-actions-v2">
-        <Link to="/counter" className="btn-join">Live Counter</Link>
+        {authenticated ? (
+          <>
+            <span className="nav-quote-pill">"Discipline turns goals into results."</span>
+            <button type="button" className="btn-logout" onClick={handleLogout}>Logout</button>
+          </>
+        ) : (
+          <>
+            <Link to="/login" className="btn-join">Login</Link>
+            <Link to="/register" className="btn-ghost">Register</Link>
+          </>
+        )}
       </div>
     </nav>
   )

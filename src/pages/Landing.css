@@ -9,12 +9,12 @@
 /* Hero Section */
 .hero-section {
   position: relative;
-  min-height: 100vh;
+  min-height: 92vh;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
-  padding: 120px 24px 100px;
+  padding: 106px 24px 56px;
   overflow: hidden;
 }
 
@@ -31,10 +31,10 @@
   position: absolute;
   inset: 0;
   background: linear-gradient(
-    135deg,
-    rgba(15, 23, 42, 0.92) 0%,
-    rgba(30, 58, 138, 0.85) 50%,
-    rgba(37, 99, 235, 0.8) 100%
+    120deg,
+    rgba(15, 23, 42, 0.76) 0%,
+    rgba(30, 58, 138, 0.64) 45%,
+    rgba(37, 99, 235, 0.72) 100%
   );
   z-index: 1;
 }
@@ -42,9 +42,21 @@
 .hero-content {
   position: relative;
   z-index: 2;
-  max-width: 800px;
-  text-align: center;
+  max-width: 1160px;
+  width: 100%;
+  text-align: left;
   color: #fff;
+}
+
+.hero-shell {
+  display: grid;
+  grid-template-columns: 1.35fr 0.95fr;
+  gap: 24px;
+  align-items: stretch;
+}
+
+.hero-copy {
+  max-width: 760px;
 }
 
 .hero-badge {
@@ -58,7 +70,7 @@
   font-weight: 500;
   border-radius: 999px;
   padding: 8px 18px;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
   backdrop-filter: blur(8px);
 }
 
@@ -76,18 +88,91 @@
 .hero-content p {
   font-size: 1.15rem;
   color: rgba(255, 255, 255, 0.85);
-  line-height: 1.7;
-  margin-bottom: 32px;
+  line-height: 1.65;
+  margin-bottom: 26px;
   max-width: 600px;
-  margin-left: auto;
-  margin-right: auto;
 }
 
 .hero-actions {
   display: flex;
   gap: 16px;
-  justify-content: center;
+  justify-content: flex-start;
   flex-wrap: wrap;
+}
+
+.hero-micro-metrics {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.hero-gallery-wrap {
+  margin-top: 16px;
+}
+
+.hero-micro-metrics span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(15, 23, 42, 0.35);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 0.84rem;
+}
+
+.hero-preview {
+  border-radius: 18px;
+  padding: 18px;
+  background: linear-gradient(150deg, rgba(255, 255, 255, 0.96) 0%, rgba(239, 246, 255, 0.93) 100%);
+  border: 1px solid rgba(191, 219, 254, 0.95);
+  color: #0f172a;
+}
+
+.hero-preview small {
+  display: inline-block;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #1e40af;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.hero-preview h3 {
+  margin-top: 6px;
+  font-size: 1.2rem;
+}
+
+.hero-preview ul {
+  margin-top: 10px;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.hero-preview li {
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 8px 10px;
+  color: #1e3a8a;
+  font-size: 0.88rem;
+}
+
+.hero-preview-footer {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.hero-preview-footer span {
+  color: #334155;
+  font-size: 0.84rem;
 }
 
 .btn-lg {
@@ -126,14 +211,15 @@
 
 /* Hero Stats */
 .hero-stats {
-  position: absolute;
-  bottom: -40px;
-  left: 50%;
-  transform: translateX(-50%);
+  position: relative;
+  margin-top: 26px;
   z-index: 3;
   display: flex;
-  gap: 40px;
-  padding: 32px 48px;
+  flex-wrap: wrap;
+  width: min(1160px, 100%);
+  justify-content: space-between;
+  gap: 28px;
+  padding: 22px 28px;
   border-radius: 20px;
   background: rgba(255, 255, 255, 0.95);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
@@ -206,7 +292,7 @@
 
 /* Equipment Section */
 .equipment-section {
-  padding-top: 120px;
+  padding-top: 86px;
 }
 
 .equipment-grid {
@@ -219,14 +305,18 @@
   border-radius: 16px;
   overflow: hidden;
   transition: all 0.3s ease;
+  border: 1px solid #dbeafe;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
 }
 
 .equipment-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.12);
+  transform: translateY(-6px);
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.12);
+  border-color: #93c5fd;
 }
 
 .equipment-img {
+  position: relative;
   height: 180px;
   background: #f1f5f9;
   overflow: hidden;
@@ -236,25 +326,62 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.4s ease;
+  transition: transform 0.45s ease, filter 0.35s ease;
 }
 
 .equipment-card:hover .equipment-img img {
-  transform: scale(1.08);
+  transform: scale(1.09);
+  filter: saturate(1.08) brightness(1.06);
+}
+
+.equipment-type {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  border-radius: 999px;
+  padding: 5px 10px;
+  border: 1px solid rgba(147, 197, 253, 0.9);
+  background: rgba(239, 246, 255, 0.95);
+  color: #1e40af;
+  font-size: 0.72rem;
+  font-weight: 700;
+  backdrop-filter: blur(2px);
+}
+
+.equipment-card-body {
+  padding: 14px;
+  display: grid;
+  gap: 8px;
 }
 
 .equipment-card h4 {
   font-size: 1rem;
   font-weight: 700;
   color: #0f172a;
-  padding: 16px 16px 8px;
+  margin: 0;
 }
 
 .equipment-card p {
-  font-size: 0.85rem;
-  color: #64748b;
-  padding: 0 16px 16px;
+  font-size: 0.88rem;
+  color: #475569;
   line-height: 1.5;
+  margin: 0;
+}
+
+.equipment-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.equipment-meta-row span {
+  border: 1px solid #dbeafe;
+  background: #eff6ff;
+  color: #1e3a8a;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  padding: 4px 9px;
+  font-weight: 600;
 }
 
 /* Exercises Section */
@@ -286,7 +413,7 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: all 0.4s ease;
+  transition: transform 0.45s ease, filter 0.35s ease;
 }
 
 .exercise-overlay {
@@ -316,6 +443,16 @@
 
 .exercise-card:hover .exercise-img img {
   transform: scale(1.1);
+  filter: saturate(1.08) brightness(1.08);
+}
+
+.class-card:hover .class-img img {
+  transform: scale(1.05);
+  filter: saturate(1.06) brightness(1.05);
+}
+
+.class-img img {
+  transition: transform 0.45s ease, filter 0.35s ease;
 }
 
 .exercise-info {
@@ -629,13 +766,13 @@
 
 /* Skeleton Loading */
 .skeleton {
-  animation: pulse 1.5s infinite;
+  animation: pulse 1.8s ease-in-out infinite;
 }
 
 .skeleton-img {
-  background: linear-gradient(90deg, #e2e8f0 0%, #f1f5f9 50%, #e2e8f0 100%);
+  background: linear-gradient(90deg, rgba(19, 24, 28, 0.95) 0%, rgba(39, 48, 56, 0.95) 50%, rgba(19, 24, 28, 0.95) 100%);
   background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
+  animation: shimmer 1.8s linear infinite;
   height: 180px;
   border-radius: 12px 12px 0 0;
 }
@@ -646,7 +783,7 @@
 
 .skeleton-text {
   height: 60px;
-  background: #f1f5f9;
+  background: rgba(17, 22, 26, 0.92);
   border-radius: 0 0 12px 12px;
 }
 
@@ -663,17 +800,27 @@
 /* Responsive */
 @media (max-width: 768px) {
   .hero-section {
-    padding: 100px 20px 80px;
+    padding: 100px 20px 56px;
+  }
+
+  .hero-shell {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .hero-content {
+    text-align: left;
+  }
+
+  .hero-content p {
+    max-width: 100%;
   }
 
   .hero-stats {
-    position: relative;
-    bottom: auto;
-    left: auto;
-    transform: none;
+    width: 100%;
     flex-wrap: wrap;
     justify-content: center;
-    margin-top: 40px;
+    margin-top: 20px;
     padding: 24px;
     gap: 24px;
   }
@@ -709,5 +856,357 @@
 
   .cta-card {
     padding: 40px 24px;
+  }
+}
+
+/* Dark Grid Theme Overrides */
+.gym-landing {
+  background: transparent;
+}
+
+.hero-overlay {
+  background:
+    linear-gradient(120deg, rgba(5, 7, 9, 0.6) 0%, rgba(8, 12, 15, 0.48) 44%, rgba(7, 10, 12, 0.56) 100%),
+    linear-gradient(rgba(231, 255, 26, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(231, 255, 26, 0.035) 1px, transparent 1px);
+  background-size: auto, 44px 44px, 44px 44px;
+}
+
+.hero-bg {
+  filter: saturate(0.85) contrast(1) brightness(0.82);
+}
+
+.hero-badge {
+  background: rgba(231, 255, 26, 0.11);
+  border-color: rgba(231, 255, 26, 0.34);
+  color: #effac0;
+}
+
+.hero-content h1 {
+  background: linear-gradient(135deg, #f6fbff 0%, #e7ff1a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+.hero-preview,
+.hero-stats,
+.equipment-card,
+.class-card,
+.pricing-card,
+.trainer-card,
+.contact-item,
+.cta-content,
+.cta-card,
+.exercise-info,
+.pricing-card.popular {
+  background: linear-gradient(150deg, rgba(10, 13, 16, 0.9) 0%, rgba(7, 10, 12, 0.96) 100%);
+  border: 1px solid rgba(231, 255, 26, 0.2);
+  color: #e5edf6;
+  box-shadow: none;
+}
+
+.hero-preview li,
+.equipment-type,
+.section-tag,
+.popular-badge,
+.class-meta span,
+.features-list li,
+.equipment-meta-row span,
+.hero-micro-metrics span {
+  background: rgba(231, 255, 26, 0.1);
+  border-color: rgba(231, 255, 26, 0.32);
+  color: #eefbc2;
+}
+
+.section-header h2,
+.equipment-card h4,
+.exercise-info h4,
+.class-content h4,
+.pricing-card h3,
+.stat-item strong {
+  color: #f4f8fb;
+}
+
+.section-header p,
+.equipment-card p,
+.class-content p,
+.stat-item span,
+.hero-preview-footer span,
+.features-list li {
+  color: #9fb0bf;
+}
+
+.equipment-img,
+.class-img,
+.exercise-img,
+.trainer-img {
+  background: #0d1318;
+}
+
+.equipment-img img,
+.exercise-img img,
+.class-img img,
+.trainer-img img {
+  filter: none;
+  opacity: 1;
+}
+
+.exercise-overlay {
+  background: linear-gradient(180deg, rgba(7, 10, 12, 0.2) 0%, rgba(7, 10, 12, 0.92) 100%);
+}
+
+.exercise-overlay span {
+  color: #e7ff1a;
+}
+
+.section,
+.exercises-section,
+.classes-section,
+.pricing-section,
+.testimonials-section,
+.trainers-section,
+.contact-section,
+.cta-section {
+  background: transparent;
+}
+
+.cta-content h2,
+.cta-content p,
+.hero-preview h3,
+.hero-preview-footer span {
+  color: #f4f8fb;
+}
+
+.hero-preview li {
+  border-color: rgba(231, 255, 26, 0.22);
+}
+
+@media (max-width: 980px) {
+  .hero-section {
+    min-height: auto;
+    padding: 98px 20px 46px;
+  }
+
+  .hero-stats {
+    gap: 14px;
+    padding: 16px;
+  }
+
+  .stat-item {
+    min-width: 108px;
+    flex: 1 1 120px;
+  }
+}
+
+/* Membership + CTA Section Corrections */
+.pricing-grid {
+  align-items: stretch;
+}
+
+.pricing-card {
+  border-radius: 18px;
+  padding: 30px 22px;
+}
+
+.pricing-card h3 {
+  color: #f4f8fb;
+}
+
+.price {
+  margin-bottom: 18px;
+}
+
+.currency,
+.period {
+  color: #c1cfdd;
+}
+
+.amount {
+  color: #e7ff1a;
+  text-shadow: 0 0 16px rgba(231, 255, 26, 0.2);
+}
+
+.pricing-card .features-list {
+  margin: 0 0 18px;
+  gap: 8px;
+}
+
+.pricing-card .features-list li {
+  background: rgba(231, 255, 26, 0.08);
+  border: 1px solid rgba(231, 255, 26, 0.2);
+  border-radius: 10px;
+  padding: 7px 10px;
+  color: #dbe4ef;
+  line-height: 1.35;
+}
+
+.pricing-card .features-list li svg {
+  color: #e7ff1a;
+}
+
+.pricing-card .btn-outline {
+  border-color: rgba(179, 191, 205, 0.52);
+  color: #eaf1f8;
+  background: rgba(13, 17, 21, 0.78);
+}
+
+.pricing-card .btn-outline:hover {
+  border-color: rgba(231, 255, 26, 0.35);
+  background: rgba(231, 255, 26, 0.1);
+}
+
+.cta-card {
+  max-width: 980px;
+}
+
+.cta-content {
+  border: 1px solid rgba(231, 255, 26, 0.2);
+  border-radius: 14px;
+  padding: 28px 18px;
+}
+
+.cta-content p {
+  color: #b5c2cf;
+}
+
+/* Final Light Theme Overrides */
+.hero-overlay {
+  background:
+    linear-gradient(120deg, rgba(247, 250, 248, 0.78) 0%, rgba(238, 244, 251, 0.75) 48%, rgba(233, 240, 249, 0.8) 100%),
+    linear-gradient(rgba(32, 39, 51, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(32, 39, 51, 0.035) 1px, transparent 1px);
+  background-size: auto, 42px 42px, 42px 42px;
+}
+
+.hero-bg {
+  filter: saturate(1) contrast(1) brightness(1.02);
+}
+
+.hero-content,
+.hero-content h1,
+.hero-content p,
+.hero-preview,
+.hero-preview h3,
+.hero-preview-footer span,
+.hero-micro-metrics span,
+.section-header h2,
+.section-header p,
+.section-tag,
+.equipment-card h4,
+.equipment-card p,
+.exercise-info h4,
+.class-content h4,
+.class-content p,
+.class-meta,
+.pricing-card h3,
+.features-list li,
+.currency,
+.period,
+.amount,
+.cta-content h2,
+.cta-content p,
+.footer-brand h3,
+.footer-brand p,
+.footer-links h4,
+.footer-contact h4,
+.footer-links a,
+.footer-contact p,
+.footer-bottom p,
+.stat-item strong,
+.stat-item span {
+  color: #202733 !important;
+}
+
+.hero-badge,
+.hero-micro-metrics span,
+.section-tag,
+.equipment-type,
+.equipment-meta-row span,
+.popular-badge,
+.features-list li,
+.hero-preview li,
+.class-meta span {
+  border-color: #bfd4f3 !important;
+  background: #edf4ff !important;
+}
+
+.hero-preview,
+.hero-stats,
+.equipment-card,
+.exercise-info,
+.class-card,
+.pricing-card,
+.cta-card,
+.cta-content,
+.gym-footer,
+.footer-content {
+  background: #ffffff !important;
+  border-color: #dbe3ef !important;
+}
+
+.pricing-section,
+.exercises-section,
+.classes-section,
+.cta-section {
+  background: transparent !important;
+}
+
+.btn-outline {
+  border: 1px solid #2f6fb2 !important;
+  color: #2f6fb2 !important;
+  background: transparent !important;
+}
+
+.btn-outline:hover {
+  background: #e8f1fb !important;
+}
+
+.hero-content h1,
+.section-tag,
+.popular-badge,
+.equipment-type,
+.hero-badge,
+.stat-icon {
+  color: #2f6fb2 !important;
+}
+
+/* Ensure hero heading is fully visible (disable transparent gradient text) */
+.hero-content h1 {
+  background: none !important;
+  -webkit-background-clip: initial !important;
+  background-clip: initial !important;
+  -webkit-text-fill-color: #1f2e43 !important;
+  color: #1f2e43 !important;
+  letter-spacing: -0.02em;
+}
+
+.hero-content p {
+  color: #334155 !important;
+}
+
+.hero-preview li {
+  color: #2f3f55 !important;
+}
+
+.hero-reveal {
+  animation: heroReveal 0.8s ease both;
+}
+
+.hero-reveal-delay-1 {
+  animation-delay: 0.18s;
+}
+
+.hero-reveal-delay-2 {
+  animation-delay: 0.32s;
+}
+
+@keyframes heroReveal {
+  0% {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

@@ -1,7 +1,9 @@
 import { useState, useRef } from 'react'
 import { motion } from 'framer-motion'
-import { Search, Upload, Apple, ShoppingCart, Loader, Camera, X } from 'lucide-react'
-import { fetchFoodEstimate, getShoppingSuggestions, recognizeFood } from '../services/api'
+import { Link } from 'react-router-dom'
+import { Search, Upload, Apple, Loader, Camera, X, ShoppingCart } from 'lucide-react'
+import { fetchFoodEstimateGroq, recognizeFood } from '../services/api'
+import ShoppingChat from '../components/ShoppingChat'
 import './FeaturePages.css'
 
 export default function AppStore() {
@@ -9,13 +11,12 @@ export default function AppStore() {
   const [isSearching, setIsSearching] = useState(false)
   const [nutritionData, setNutritionData] = useState(null)
   const [errorMessage, setErrorMessage] = useState('')
-  const [shoppingSuggestions, setShoppingSuggestions] = useState([])
-  const [isLoadingShopping, setIsLoadingShopping] = useState(false)
+  const [statusMessage, setStatusMessage] = useState('')
 
   // Image upload states
-  const [isUploadingImage, setIsUploadingImage] = useState(false)
   const [imagePreview, setImagePreview] = useState(null)
   const [cameraActive, setCameraActive] = useState(false)
+  const [imageLoading, setImageLoading] = useState(false)
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
   const fileInputRef = useRef(null)
@@ -26,27 +27,17 @@ export default function AppStore() {
 
     setIsSearching(true)
     setErrorMessage('')
+    setStatusMessage('')
     setNutritionData(null)
 
     try {
-      const data = await fetchFoodEstimate(searchQuery)
+      const data = await fetchFoodEstimateGroq(searchQuery)
       setNutritionData(data.result)
+      setStatusMessage('Groq calorie estimate loaded.')
     } catch (error) {
       setErrorMessage(error.message || 'Failed to fetch nutrition data')
     } finally {
       setIsSearching(false)
-    }
-  }
-
-  const handleLoadShoppingSuggestions = async (preference) => {
-    setIsLoadingShopping(true)
-    try {
-      const data = await getShoppingSuggestions(preference)
-      setShoppingSuggestions(data.suggestions || [])
-    } catch (error) {
-      setErrorMessage(error.message || 'Failed to load shopping suggestions')
-    } finally {
-      setIsLoadingShopping(false)
     }
   }
 
@@ -97,8 +88,9 @@ export default function AppStore() {
   }
 
   const uploadImage = async (imageData) => {
-    setIsUploadingImage(true)
+    setImageLoading(true)
     setErrorMessage('')
+    setStatusMessage('')
     try {
       const response = await recognizeFood(imageData)
       if (response.recognition) {
@@ -110,14 +102,26 @@ export default function AppStore() {
           fats: response.recognition.fats,
           source: response.recognition.source || 'image_recognition'
         })
+        setStatusMessage('Image analyzed successfully.')
       }
       stopCamera()
     } catch (error) {
       setErrorMessage(error.message || 'Failed to analyze food image')
     } finally {
-      setIsUploadingImage(false)
+      setImageLoading(false)
     }
   }
+
+  // Loading skeleton for image
+  const ImageLoadingSkeleton = () => (
+    <div style={{ padding: '40px 20px', textAlign: 'center' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '12px' }}>
+        <Loader size={20} style={{ animation: 'spin 1s linear infinite' }} />
+        <span>Analyzing image...</span>
+      </div>
+      <p style={{ fontSize: '0.85rem', color: '#999' }}>This may take a few seconds</p>
+    </div>
+  )
 
   return (
     <motion.div
@@ -127,15 +131,21 @@ export default function AppStore() {
       exit={{ opacity: 0 }}
       transition={{ duration: 0.4 }}
     >
+      {/* Hero Section */}
       <section className="feature-hero glass">
-        <div className="feature-badge"><Apple size={14} /> Food Recognition + Nutrition AI</div>
+        <div className="feature-badge"><Apple size={14} /> Nutrition & Shopping Intelligence</div>
         <h1>Nutrition Intelligence</h1>
-        <p>Search for any food item to get instant calorie and macro estimates powered by AI.</p>
+        <p>Search food calories, analyze images, and discover products with AI assistance.</p>
+        <Link to="/shopping-cart" className="btn-primary" style={{ marginTop: '12px', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+          <ShoppingCart size={16} /> Open Cart
+        </Link>
       </section>
 
-      <section className="feature-grid">
+      {/* Food Search Section */}
+      <section className="nutrition-section">
+        <h2>Food Search</h2>
         <article className="feature-card glass">
-          <h3><Search size={16} /> Food Search</h3>
+          <p style={{ marginBottom: '12px', fontSize: '0.9rem', color: '#666' }}>Search for any food item to get calorie estimates powered by Groq API</p>
           <form className="inline-form" onSubmit={handleFoodSearch}>
             <input
               placeholder="Search food (paneer, oats, chicken breast...)"
@@ -144,46 +154,28 @@ export default function AppStore() {
               disabled={isSearching}
             />
             <button className="btn-primary" type="submit" disabled={isSearching}>
-              {isSearching ? <Loader size={16} /> : 'Search'}
+              {isSearching ? <Loader size={16} /> : <Search size={16} />}
+              {isSearching ? 'Searching...' : 'Search'}
             </button>
           </form>
-          {errorMessage && <p className="camera-error">{errorMessage}</p>}
-        </article>
-
-        <article className="feature-card glass">
-          <h3>Nutrition Output</h3>
-          {nutritionData ? (
-            <>
-              <p style={{ marginBottom: '12px' }}>
-                <strong>{nutritionData.food}</strong> (per 100g)
-                <br />
-                <small style={{ opacity: 0.7 }}>Source: {nutritionData.source}</small>
-              </p>
-              <div className="feature-stats">
-                <div className="stat-box"><strong>Calories</strong><small>{nutritionData.calories} kcal</small></div>
-                <div className="stat-box"><strong>Protein</strong><small>{nutritionData.protein} g</small></div>
-                <div className="stat-box"><strong>Carbs</strong><small>{nutritionData.carbs} g</small></div>
-                <div className="stat-box"><strong>Fats</strong><small>{nutritionData.fats} g</small></div>
-              </div>
-            </>
-          ) : (
-            <>
-              <p style={{ marginBottom: '12px', opacity: 0.7 }}>Search for a food item to see nutrition data</p>
-              <div className="feature-stats">
-                <div className="stat-box"><strong>Calories</strong><small>-- kcal</small></div>
-                <div className="stat-box"><strong>Protein</strong><small>-- g</small></div>
-                <div className="stat-box"><strong>Carbs</strong><small>-- g</small></div>
-                <div className="stat-box"><strong>Fats</strong><small>-- g</small></div>
-              </div>
-            </>
+          {isSearching && (
+            <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', opacity: 0.85 }}>
+              <Loader size={16} style={{ animation: 'spin 1s linear infinite' }} />
+              <span>Fetching calories from AI service...</span>
+            </div>
           )}
         </article>
+      </section>
 
+      {/* Image Recognition Section */}
+      <section className="image-recognition-section">
+        <h2>Food Image Recognition</h2>
         <article className="feature-card glass">
-          <h3><Upload size={16} /> Upload Food Image</h3>
-          <p>Capture photo or upload image to get AI-powered food analysis with calorie estimates.</p>
+          <p style={{ marginBottom: '12px', fontSize: '0.9rem', color: '#666' }}>Capture or upload a food image to get AI-powered nutrition analysis</p>
 
-          {cameraActive && (
+          {imageLoading && <ImageLoadingSkeleton />}
+
+          {cameraActive && !imageLoading && (
             <div style={{ marginBottom: '12px', borderRadius: '8px', overflow: 'hidden', position: 'relative' }}>
               <video
                 ref={videoRef}
@@ -196,10 +188,9 @@ export default function AppStore() {
                 <button
                   className="btn-primary"
                   onClick={capturePhoto}
-                  disabled={isUploadingImage}
                   style={{ flex: 1 }}
                 >
-                  {isUploadingImage ? <Loader size={16} /> : 'Capture Photo'}
+                  Capture Photo
                 </button>
                 <button
                   className="btn-primary btn-secondary"
@@ -212,7 +203,7 @@ export default function AppStore() {
             </div>
           )}
 
-          {imagePreview && !cameraActive && (
+          {imagePreview && !cameraActive && !imageLoading && (
             <div style={{ marginBottom: '12px', borderRadius: '8px', overflow: 'hidden' }}>
               <img
                 src={imagePreview}
@@ -222,80 +213,108 @@ export default function AppStore() {
             </div>
           )}
 
-          <div style={{ display: 'flex', gap: '8px' }}>
-            {!cameraActive && (
-              <>
-                <button
-                  className="btn-primary btn-secondary"
-                  onClick={startCamera}
-                  disabled={isUploadingImage}
-                  style={{ flex: 1 }}
-                >
-                  <Camera size={16} /> Take Photo
-                </button>
-                <button
-                  className="btn-primary btn-secondary"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isUploadingImage}
-                  style={{ flex: 1 }}
-                >
-                  <Upload size={16} /> Choose File
-                </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileSelect}
-                  style={{ display: 'none' }}
-                />
-              </>
-            )}
-          </div>
-        </article>
-
-        <article className="feature-card glass">
-          <h3><ShoppingCart size={16} /> Smart Shopping Integration</h3>
-          <p>Get personalized shopping suggestions based on your dietary preferences:</p>
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-            <button
-              className="btn-primary btn-secondary"
-              type="button"
-              onClick={() => handleLoadShoppingSuggestions('vegetarian')}
-              disabled={isLoadingShopping}
-            >
-              Vegetarian
-            </button>
-            <button
-              className="btn-primary btn-secondary"
-              type="button"
-              onClick={() => handleLoadShoppingSuggestions('vegan')}
-              disabled={isLoadingShopping}
-            >
-              Vegan
-            </button>
-            <button
-              className="btn-primary btn-secondary"
-              type="button"
-              onClick={() => handleLoadShoppingSuggestions('non_veg')}
-              disabled={isLoadingShopping}
-            >
-              Non-Veg
-            </button>
-          </div>
-          {shoppingSuggestions.length > 0 && (
-            <ul className="feature-list">
-              {shoppingSuggestions.map((item, index) => (
-                <li key={index}>
-                  <strong>{item.title}</strong> ({item.category})
-                  {item.external_url && (
-                    <a href={item.external_url} target="_blank" rel="noopener noreferrer" style={{ marginLeft: '8px' }}>
-                      View
-                    </a>
-                  )}
-                </li>
-              ))}
-            </ul>
+          {!imageLoading && (
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {!cameraActive && (
+                <>
+                  <button
+                    className="btn-primary btn-secondary"
+                    onClick={startCamera}
+                    style={{ flex: 1 }}
+                  >
+                    <Camera size={16} /> Take Photo
+                  </button>
+                  <button
+                    className="btn-primary btn-secondary"
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{ flex: 1 }}
+                  >
+                    <Upload size={16} /> Choose File
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileSelect}
+                    style={{ display: 'none' }}
+                  />
+                </>
+              )}
+            </div>
           )}
+        </article>
+      </section>
+
+      {/* Nutrition Output Section - Only show when has data */}
+      {nutritionData && (
+        <section className="nutrition-output-section">
+          <h2>Nutrition Information</h2>
+          <article className="feature-card glass">
+            <p style={{ marginBottom: '12px' }}>
+              <strong>{nutritionData.food}</strong> (per 100g)
+              <br />
+              <small style={{ opacity: 0.7, fontSize: '0.85rem' }}>
+                Source: {
+                  nutritionData.source === 'image_recognition'
+                    ? 'Image Recognition'
+                    : nutritionData.source === 'groq_calories'
+                      ? 'Groq API'
+                      : 'Database Search'
+                }
+              </small>
+            </p>
+            <div className="feature-stats">
+              <div className="stat-box"><strong>Calories</strong><small>{nutritionData.calories} kcal</small></div>
+              <div className="stat-box"><strong>Protein</strong><small>{nutritionData.protein} g</small></div>
+              <div className="stat-box"><strong>Carbs</strong><small>{nutritionData.carbs} g</small></div>
+              <div className="stat-box"><strong>Fats</strong><small>{nutritionData.fats} g</small></div>
+            </div>
+            {nutritionData.source === 'groq_calories' && (
+              <p style={{ marginTop: '10px', fontSize: '0.85rem', opacity: 0.8 }}>
+                AI returned calories directly. Macro values are not provided for this search.
+              </p>
+            )}
+          </article>
+        </section>
+      )}
+
+      {/* Error Message */}
+      {errorMessage && (
+        <div style={{
+          background: '#fee',
+          border: '1px solid #fcc',
+          color: '#c33',
+          padding: '12px',
+          borderRadius: '8px',
+          fontSize: '0.9rem'
+        }}>
+          {errorMessage}
+        </div>
+      )}
+
+      {/* Status Message */}
+      {statusMessage && (
+        <div style={{
+          background: '#ecfdf3',
+          border: '1px solid #a7f3d0',
+          color: '#065f46',
+          padding: '12px',
+          borderRadius: '8px',
+          fontSize: '0.9rem',
+          marginTop: '10px'
+        }}>
+          {statusMessage}
+        </div>
+      )}
+
+      {/* Smart Shopping - AI Chat Section */}
+      <section className="shopping-section">
+        <h2>Smart Shopping with AI</h2>
+        <p style={{ marginBottom: '10px', fontSize: '0.9rem', color: '#666' }}>
+          Ask the AI directly. Example: "give me diet coke". The assistant uses Groq + Wikipedia and replies with product cards including image, add to cart, and buy links.
+        </p>
+        <article className="feature-card glass" style={{ padding: 0, borderRadius: '12px', overflow: 'hidden' }}>
+          <ShoppingChat />
         </article>
       </section>
     </motion.div>
